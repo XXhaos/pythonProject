@@ -50,7 +50,7 @@ def fastq_to_image_segmented(fastq_path, output_path):
             print(f"最后的图像块 {read_count // image_height + 1} 已保存。")
 
 # 示例文件路径（需要替换为实际路径）
-fastq_path = "input/SRR554369.fastq"
+fastq_path = "../fastqtobmp/input/SRR554369.fastq"
 output_path = "cache/change_to_gray/grayimage"
 
 # 调用函数处理 FASTQ 文件
