@@ -27,9 +27,12 @@ def compress_all_images(image_directory, output_directory):
             print(f"文件 {image_file} 已成功压缩为 {output_file}.zpaq")
         except subprocess.CalledProcessError as e:
             print(f"压缩文件 {image_file} 失败：", e)
-        # 记录结束时间
-        end_time = time.time()
-        print(f"总共用时 {end_time - start_time} 秒")
+
+    # 记录结束时间
+    end_time = time.time()
+    # 打印执行时间
+    execution_time = end_time - start_time
+    print(f"代码执行时间: {execution_time} 秒")
 
 # 示例用法
 compress_all_images("cache/change_to_gray", "cache/backend_compressed_images")

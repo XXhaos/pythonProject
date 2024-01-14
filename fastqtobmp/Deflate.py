@@ -24,7 +24,9 @@ def compress_tiff_files_with_pillow(directory, compression='tiff_adobe_deflate')
 
     # 记录结束时间
     end_time = time.time()
-    print(f"总共用时 {end_time - start_time} 秒")
+    # 打印执行时间
+    execution_time = end_time - start_time
+    print(f"代码执行时间: {execution_time} 秒")
 
 # 指定需要压缩的文件夹路径
 directory_path = 'cache/change_to_gray'

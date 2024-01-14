@@ -1,7 +1,11 @@
 import lzma
 import os
+import time
 
 def compress_files_with_lzma(directory):
+    # 记录开始时间
+    start_time = time.time()
+
     compressed_dir = os.path.join(directory, 'compressed')
     os.makedirs(compressed_dir, exist_ok=True)
 
@@ -20,6 +24,13 @@ def compress_files_with_lzma(directory):
             with open(compressed_file_path, 'wb') as compressed_file:
                 compressed_file.write(compressed_data)
                 print(f"Compressed and saved: {compressed_file_path}")
+
+    # 记录结束时间
+    end_time = time.time()
+    # 打印执行时间
+    execution_time = end_time - start_time
+    print(f"代码执行时间: {execution_time} 秒")
+
 
 # 指定需要压缩的文件夹路径
 directory_path = 'cache/change_to_gray'
