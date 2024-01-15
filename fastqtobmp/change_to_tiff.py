@@ -11,7 +11,7 @@ def fastq_to_image_segmented(fastq_path, output_path):
     base_to_gray = {'A': 32, 'T': 64, 'G': 192, 'C': 224, 'N': 0}
 
     # 每一轮图像的目标大小（字节），碱基图像和质量分数图像的总大小
-    target_image_size_bytes = 50 * 1024 * 1024  # 50 MB
+    target_image_size_bytes = 500 * 1024 * 1024  # 500 MB
 
     # 使用 BioPython 读取 FASTQ 文件的第一个 read 以确定 reads 的长度
     with open(fastq_path, 'r') as file:
