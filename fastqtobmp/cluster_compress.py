@@ -1,6 +1,7 @@
 import os
 import glob
 import numpy as np
+from skimage.feature import graycomatrix, graycoprops
 import tifffile as tiff
 from sklearn.cluster import KMeans
 from sklearn.preprocessing import StandardScaler
@@ -8,11 +9,24 @@ import subprocess
 import time
 
 
-def extract_features(image_path):
-    # 读取图像并计算其统计特征
+def extract_glcm_features(image_path):
+    # 读取图像
     image = tiff.imread(image_path)
-    features = np.array([np.mean(image), np.std(image)])
-    return features
+
+    # 确保图像是二维的
+    if image.ndim == 3:
+        image = image[:, :, 0]
+
+    # 计算 GLCM
+    glcm = graycomatrix(image, distances=[1], angles=[0], symmetric=True, normed=True)
+
+    # 提取 GLCM 特征
+    contrast = graycoprops(glcm, 'contrast')[0, 0] # 对比度
+    homogeneity = graycoprops(glcm, 'homogeneity')[0, 0] # 一致性
+    energy = graycoprops(glcm, 'energy')[0, 0] # 能量
+    correlation = graycoprops(glcm, 'correlation')[0, 0] # 相关性
+
+    return np.array([contrast, homogeneity, energy, correlation])
 
 
 def cluster_images(image_directory, n_clusters=3):
@@ -20,7 +34,7 @@ def cluster_images(image_directory, n_clusters=3):
     image_paths = glob.glob(f"{image_directory}/*.tiff")
 
     # 提取图像特征
-    features = np.array([extract_features(path) for path in image_paths])
+    features = np.array([extract_glcm_features(path) for path in image_paths])
 
     # 标准化特征
     scaler = StandardScaler()
