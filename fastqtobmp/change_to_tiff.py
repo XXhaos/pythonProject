@@ -40,21 +40,22 @@ def fastq_to_image_segmented(fastq_path, output_path):
             final_quality_image_block = quality_image_block[:read_count % image_height, :]
             tiff.imwrite(f"{output_path}_base_{read_count // image_height + 1}.tiff", final_base_image_block)
             tiff.imwrite(f"{output_path}_quality_{read_count // image_height + 1}.tiff", final_quality_image_block)
-            print(f"最后的图像块 {read_count // image_height + 1} 已保存。")
+            total_blocks = read_count // image_height + 1
+            print(f"最后的图像块 {total_blocks} 已保存。")
 
     end_time = time.time()
     execution_time = end_time - start_time
     print(f"代码执行时间: {execution_time} 秒")
 
     # 返回读取的reads数
-    return read_count
+    return read_count,read_length,image_height,total_blocks
 
 # 示例文件路径（需要替换为实际路径）
 fastq_path = "input/SRR554369.fastq"
 output_path = "cache/change_to_gray/grayimage"
 
 # 调用函数处理FASTQ文件并接收read_count
-read_count = fastq_to_image_segmented(fastq_path, output_path)
+read_count,read_length,image_height,total_blocks = fastq_to_image_segmented(fastq_path, output_path)
 
 # 打印处理的reads数量
-print(f"处理的reads数量: {read_count}")
+print(f"处理的reads数量: {read_count}，每个read的长度: {read_length}，图像的高度: {image_height}，一共有: {total_blocks}个图像块。")
