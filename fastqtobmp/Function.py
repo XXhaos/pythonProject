@@ -163,7 +163,7 @@ try:
     qualities = GetRowQuality(i, read_count, image_height, output_path)
     base_list = GetLineBase(j, total_blocks, output_path, read_length)
     quality_list = GetLineQuality(j, total_blocks, output_path, read_length)
-    base = GetLineBase(i, j, read_count, image_height, output_path)
+    base = GetBase(i, j, read_count, image_height, output_path)
     quality = GetQuality(i, j , read_count, image_height, output_path)
     print("碱基序列:", bases)
     print("质量分数:", qualities)
