@@ -7,7 +7,7 @@ def fastq_to_image_segmented(fastq_path, output_path):
     start_time = time.time()
 
     base_to_gray = {'A': 32, 'T': 64, 'G': 192, 'C': 224, 'N': 0}
-    target_image_size_bytes = 250 * 1024 * 1024  # 250 MB
+    target_image_size_bytes = 64 * 1024 * 1024  # 一次处理64MB，序列和质量图像各占一半
 
     with open(fastq_path, 'r') as file:
         first_record = next(SeqIO.parse(file, "fastq"))

@@ -26,7 +26,7 @@ def image_to_fastq(image_directory, fastq_output_path):
     # 打开输出文件进行写入
     with open(fastq_output_path, 'w') as output_handle:
         # 设置批处理大小
-        batch_size = 50000  # 这个值可以根据内存限制进行调整
+        batch_size = 50000  # 一次性写入的reads数量
 
         # 遍历每个图像块，将灰度值转换回reads序列
         for base_path, quality_path in zip(base_image_paths, quality_image_paths):
