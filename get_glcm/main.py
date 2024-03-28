@@ -36,7 +36,7 @@ if __name__ == '__main__':
         start = time.time()
         print('glcm:',k)
         print('---------------.0. Parameter Setting-----------------')
-        nbit = 64 # gray levels
+        nbit = 94 # gray levels
         mi, ma = 0, 255 # max gray and min gray
         slide_window = 7 # sliding window
         # step = [2, 4, 8, 16] # step

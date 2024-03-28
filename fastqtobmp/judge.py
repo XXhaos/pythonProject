@@ -60,7 +60,7 @@ def compare_fastq_files(file1_path, file2_path):
         print(f"文件长度相同，共找到 {diff_count} 处差异")
 
 # 示例文件路径（需要替换为实际路径）
-file1_path = "input/SRR554369.fastq" # 原始FASTQ文件路径
+file1_path = "input/ERR3365952.fastq" # 原始FASTQ文件路径
 file2_path = "cache/change_to_fastq/restored_reads.fastq"  # 恢复后的FASTQ文件路径
 
 # 调用函数比较两个 FASTQ 文件

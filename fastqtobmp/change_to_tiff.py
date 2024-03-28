@@ -51,7 +51,7 @@ def fastq_to_image_segmented(fastq_path, output_path):
     return read_count,read_length,image_height,total_blocks
 
 # 示例文件路径（需要替换为实际路径）
-fastq_path = "input/SRR554369.fastq"
+fastq_path = "input/ERR3365952.fastq"
 output_path = "cache/change_to_gray/grayimage"
 
 # 调用函数处理FASTQ文件并接收read_count
