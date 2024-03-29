@@ -3,22 +3,32 @@ import numpy as np
 import tifffile as tiff
 import time
 
-def fastq_to_image_segmented(fastq_path, output_path):
+def fastq_to_image_segmented(fastq_path, output_path, block_size=4096 * 1024 * 1024):
+    """
+    将 FASTQ 文件分块读取并转换为 FASTQ 图像。
+
+    参数：
+    fastq_path：FASTQ 文件路径。
+    output_path：输出图像路径。
+    block_size：每个图像块的大小（以字节为单位）。
+    """
+
     start_time = time.time()
 
     base_to_gray = {'A': 32, 'T': 64, 'G': 192, 'C': 224, 'N': 0}
-    target_image_size_bytes = 64 * 1024 * 1024  # 一次处理64MB，序列和质量图像各占一半
 
     with open(fastq_path, 'r') as file:
-        first_record = next(SeqIO.parse(file, "fastq"))
-        read_length = len(first_record.seq)
-        image_height = target_image_size_bytes // (2 * read_length)
+        record = next(SeqIO.parse(file, "fastq"))
+        read_length = len(record.seq)
+        image_height = block_size // read_length
+
+    read_count = 0
+    block_count = 0
+
+    with open(fastq_path, 'r') as file:
         base_image_block = np.zeros((image_height, read_length), dtype=np.uint8)
         quality_image_block = np.zeros((image_height, read_length), dtype=np.uint8)
 
-    read_count = 0
-
-    with open(fastq_path, 'r') as file:
         for record in SeqIO.parse(file, "fastq"):
             base_gray_values = [base_to_gray.get(base, 0) for base in record.seq]
             base_image_block[read_count % image_height, :] = base_gray_values
@@ -26,29 +36,31 @@ def fastq_to_image_segmented(fastq_path, output_path):
             quality_gray_values = [min(q * 2, 255) for q in record.letter_annotations["phred_quality"]]
             quality_image_block[read_count % image_height, :] = quality_gray_values
 
-            if read_count % image_height == image_height - 1:
-                tiff.imwrite(f"{output_path}_base_{read_count // image_height + 1}.tiff", base_image_block)
-                tiff.imwrite(f"{output_path}_quality_{read_count // image_height + 1}.tiff", quality_image_block)
-                print(f"图像块 {read_count // image_height + 1} 已保存。")
+            read_count += 1
+
+            # 检查是否需要保存图像块
+            if read_count % image_height == 0:
+                block_count += 1
+                tiff.imwrite(f"{output_path}_base_{block_count}.tiff", base_image_block)
+                tiff.imwrite(f"{output_path}_quality_{block_count}.tiff", quality_image_block)
+                print(f"图像块 {block_count} 已保存。")
                 base_image_block = np.zeros((image_height, read_length), dtype=np.uint8)
                 quality_image_block = np.zeros((image_height, read_length), dtype=np.uint8)
 
-            read_count += 1
-
+        # 保存最后一个图像块
         if read_count % image_height > 0:
+            block_count += 1
             final_base_image_block = base_image_block[:read_count % image_height, :]
             final_quality_image_block = quality_image_block[:read_count % image_height, :]
-            tiff.imwrite(f"{output_path}_base_{read_count // image_height + 1}.tiff", final_base_image_block)
-            tiff.imwrite(f"{output_path}_quality_{read_count // image_height + 1}.tiff", final_quality_image_block)
-            total_blocks = read_count // image_height + 1
-            print(f"最后的图像块 {total_blocks} 已保存。")
+            tiff.imwrite(f"{output_path}_base_{block_count}.tiff", final_base_image_block)
+            tiff.imwrite(f"{output_path}_quality_{block_count}.tiff", final_quality_image_block)
+            print(f"最后的图像块 {block_count} 已保存。")
 
     end_time = time.time()
     execution_time = end_time - start_time
     print(f"代码执行时间: {execution_time} 秒")
 
-    # 返回读取的reads数
-    return read_count,read_length,image_height,total_blocks
+    return read_count, read_length, image_height, block_count
 
 # 示例文件路径（需要替换为实际路径）
 fastq_path = "input/ERR3365952.fastq"
