@@ -1,10 +1,10 @@
-from Bio import SeqIO
-import numpy as np
-import tifffile as tiff
-from Bio.Seq import Seq
-from Bio.SeqRecord import SeqRecord
 import glob
 import time
+import tifffile as tiff
+from Bio import SeqIO
+from Bio.Seq import Seq
+from Bio.SeqRecord import SeqRecord
+import numpy as np
 
 
 def image_to_fastq(image_directory, fastq_output_path):
@@ -16,6 +16,7 @@ def image_to_fastq(image_directory, fastq_output_path):
 
     # 获取所有碱基序列图像块路径
     base_image_paths = sorted(glob.glob(f"{image_directory}/grayimage_base_*.tiff"))
+
     # 获取所有质量分数图像块路径
     quality_image_paths = sorted(glob.glob(f"{image_directory}/grayimage_quality_*.tiff"))
 
@@ -26,33 +27,34 @@ def image_to_fastq(image_directory, fastq_output_path):
     # 打开输出文件进行写入
     with open(fastq_output_path, 'w') as output_handle:
         # 设置批处理大小
-        batch_size = 50000  # 一次性写入的reads数量
+        batch_size = 50000  # 一次性写入的 reads 数量
 
-        # 遍历每个图像块，将灰度值转换回reads序列
+        # 遍历每个图像块，将灰度值转换回 reads 序列
         for base_path, quality_path in zip(base_image_paths, quality_image_paths):
             # 读取碱基序列图像块
             base_image_block = tiff.imread(base_path)
+
             # 读取质量分数图像块
             quality_image_block = tiff.imread(quality_path)
 
-            # 初始化reads列表
-            reads = []
+            # 使用 NumPy 向量化进行转换
+            bases_array = np.vectorize(gray_to_base.get)(base_image_block, 'N')
+            qualities_array = np.vectorize(lambda x: min(x // 2, 40))(quality_image_block)
 
-            # 逐行处理图像块
-            for base_row, quality_row in zip(base_image_block, quality_image_block):
-                bases = ''.join([gray_to_base.get(pixel, 'N') for pixel in base_row])
-                qualities = [min(pixel // 2, 40) for pixel in quality_row]
-                record = SeqRecord(Seq(bases), letter_annotations={"phred_quality": qualities})
-                reads.append(record)
+            # 创建 SeqRecords 列表，将 NumPy 数组转换为字符串
+            reads = [
+                SeqRecord(Seq(''.join(bases)), letter_annotations={"phred_quality": qualities})
+                for bases, qualities in zip(bases_array, qualities_array)
+            ]
 
-                # 如果达到批处理大小或处理完图像块，则写入文件
-                if len(reads) >= batch_size:
-                    SeqIO.write(reads, output_handle, "fastq")
-                    reads = []  # 重置reads列表
-
-            # 检查在图像块处理完后是否还有剩余的reads未写入
-            if reads:
+            # 如果达到批处理大小或处理完图像块，则写入文件
+            if len(reads) >= batch_size:
                 SeqIO.write(reads, output_handle, "fastq")
+                reads = []  # 重置 reads 列表
+
+        # 检查在图像块处理完后是否还有剩余的 reads 未写入
+        if reads:
+            SeqIO.write(reads, output_handle, "fastq")
 
     # 记录结束时间
     end_time = time.time()
@@ -60,6 +62,7 @@ def image_to_fastq(image_directory, fastq_output_path):
     # 打印执行时间
     execution_time = end_time - start_time
     print(f"代码执行时间: {execution_time} 秒")
+
 
 # 示例用法
 image_directory = "cache/change_to_gray"  # 替换为存储图像块的文件夹路径
