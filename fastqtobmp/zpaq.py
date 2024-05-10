@@ -1,38 +1,34 @@
-import subprocess
-import glob
 import os
-import time
+import subprocess
 
-def compress_all_images(image_directory, output_directory):
-    #记录开始时间
-    start_time = time.time()
+def compress_file_with_zpaq(input_file, output_directory, zpaq_path):
+    """
+    使用zpaq压缩指定的文件。
 
+    参数:
+    - input_file: 完整的输入文件路径。
+    - output_directory: 压缩文件的输出目录。
+    - zpaq_path: zpaq压缩器的完整路径。
+    """
     # 确保输出目录存在
-    os.makedirs(output_directory, exist_ok=True)
+    if not os.path.exists(output_directory):
+        os.makedirs(output_directory)
 
-    # 获取目录下的所有图像文件（包括png, jp2, webp, tiff格式）
-    image_files = glob.glob(f"{image_directory}/*.*")
-    image_files = [f for f in image_files if f.endswith(('.png', '.jp2', '.webp', '.tiff'))]
+    output_file = f"{os.path.splitext(os.path.basename(input_file))[0]}.zpaq"
+    output_path = os.path.join(output_directory, output_file)
 
-    for image_file in image_files:
-        # 构建输出文件名
-        output_file = f"{output_directory}/{image_file.split('/')[-1].split('.')[0]}"
-
-        # 构建ZPAQ命令，并包含额外的参数
-        command = f"zpaq a {output_file}.zpaq {image_file} -method 5 -threads 4"
-
-        # 使用subprocess运行ZPAQ命令
-        try:
-            subprocess.run(command, check=True, shell=True)
-            print(f"文件 {image_file} 已成功压缩为 {output_file}.zpaq")
-        except subprocess.CalledProcessError as e:
-            print(f"压缩文件 {image_file} 失败：", e)
-
-    # 记录结束时间
-    end_time = time.time()
-    # 打印执行时间
-    execution_time = end_time - start_time
-    print(f"代码执行时间: {execution_time} 秒")
+    # 构建zpaq命令
+    command = [zpaq_path, "add", output_path, input_file, "-method", "5"]
+    try:
+        subprocess.run(command, check=True)
+        print(f"文件 {input_file} 压缩成功，保存为 {output_path}")
+    except subprocess.CalledProcessError as e:
+        print(f"压缩过程中出错: {e}")
+    except Exception as e:
+        print(f"发生未知错误: {str(e)}")
 
 # 示例用法
-compress_all_images("cache/change_to_gray", "cache/backend_compressed_images")
+input_file_path = 'input/G_prime.txt'  # 定义需要压缩的文件
+destination_directory = 'input/compressed'  # 定义输出目录
+zpaq_exe_path = r"D:\pythonProject\zpaq715\zpaq.exe"  # 确保这是正确的zpaq路径
+compress_file_with_zpaq(input_file_path, destination_directory, zpaq_exe_path)

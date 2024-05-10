@@ -1,123 +1,83 @@
 import numpy as np
-from numba import jit
-import matplotlib.pyplot as plt
-import cv2
-from PIL import Image
-from skimage import data
-from math import floor, ceil
-from skimage.feature import graycomatrix, graycoprops
+from skimage import feature, io
+from skimage.util import img_as_ubyte
 
 
-# 主函数，目前为空
-def main():
-    pass
-
-
-# 图像分块函数
-def image_patch(img2, slide_window, h, w):
+def calc_glcm_feature(img, i, j, pad_width, feature_name, window_size=5):
     """
-    将图像分割成指定大小的块
-    参数：
-        img2: 输入图像
-        slide_window: 滑动窗口大小
-        h: 图像高度
-        w: 图像宽度
-    返回：
-        patch: 分割后的图像块
+    计算给定位置(i, j)处的窗口的GLCM特征值。
+
+    参数:
+    - img: 边缘填充后的图像。
+    - i, j: 当前像素的坐标。
+    - pad_width: 图像边缘填充的宽度。
+    - feature_name: 需要计算的特征名称（'homogeneity', 'contrast', 'energy', 'entropy'）。
+    - window_size: 使用的窗口大小，必须是奇数。
+
+    返回:
+    - 计算得到的特征值，缩放并转换为uint8类型。
     """
-    image = img2
-    window_size = slide_window
-    # 初始化一个存储图像块的数组
-    patch = np.zeros((slide_window, slide_window, h, w), dtype=np.uint8)
-
-    # 遍历图像，提取每个图像块
-    for i in range(patch.shape[2]):
-        for j in range(patch.shape[3]):
-            patch[:, :, i, j] = img2[i: i + slide_window, j: j + slide_window]
-
-    return patch
-
-
-# 计算灰度共生矩阵 (GLCM)
-
-def calcu_glcm(img, vmin=0, vmax=255, nbit=64, slide_window=5, step=[2], angle=[0]):
-    mi, ma = vmin, vmax
-    h, w = img.shape
-
-    # Compressed gray range：vmin: 0-->0, vmax: 256-1 -->nbit-1
-    bins = np.linspace(mi, ma + 1, nbit + 1)
-    img1 = np.digitize(img, bins) - 1
-
-    # (512, 512) --> (slide_window, slide_window, 512, 512)
-    img2 = cv2.copyMakeBorder(img1, floor(slide_window / 2), floor(slide_window / 2)
-                              , floor(slide_window / 2), floor(slide_window / 2), cv2.BORDER_REPLICATE)  # 图像扩充，计算边缘像素值
-
-    patch = np.zeros((slide_window, slide_window, h, w), dtype=np.uint8)
-    patch = image_patch(img2, slide_window, h, w)
-
-    # Calculate GLCM (5, 5, 512, 512) --> (64, 64, 512, 512)
-    # greycomatrix(image, distances, angles, levels=None, symmetric=False, normed=False)
-    glcm = np.zeros((nbit, nbit, len(step), len(angle), h, w), dtype=np.uint8)
-    for i in range(patch.shape[2]):
-        for j in range(patch.shape[3]):
-            glcm[:, :, :, :, i, j] = graycomatrix(patch[:, :, i, j], step, angle, levels=nbit)
-
-    return glcm
+    # 提取以(i, j)为中心的窗口
+    window = img[i - pad_width:i + pad_width + 1, j - pad_width:j + pad_width + 1]
+    # 计算GLCM
+    glcm = feature.graycomatrix(window, [1], [0], 256, symmetric=True, normed=True)
+    # 根据特征名称计算对应的特征值
+    if feature_name == 'homogeneity':
+        value = feature.graycoprops(glcm, 'homogeneity')[0, 0]
+    elif feature_name == 'contrast':
+        value = feature.graycoprops(glcm, 'contrast')[0, 0]
+    elif feature_name == 'energy':
+        value = feature.graycoprops(glcm, 'energy')[0, 0]
+    elif feature_name == 'entropy':
+        # 计算熵
+        entropy = -np.sum(glcm * np.log2(glcm + np.finfo(float).eps))
+        value = entropy / np.log2(256)  # 简化的缩放方法，可能需要根据实际数据调整
+    # 归一化并缩放值到0-255范围内，转换为uint8类型
+    return np.clip(value * 255, 0, 255).astype(np.uint8)
 
 
-# 计算 GLCM 同质性
-def calcu_glcm_homogeneity(glcm, nbit=64):
-    '''
-    计算 GLCM 同质性
-    '''
-    Homogeneity = np.zeros((glcm.shape[2], glcm.shape[3]), dtype=np.float32)
-    for i in range(nbit):
-        for j in range(nbit):
-            Homogeneity += glcm[i, j] / (1. + (i - j) ** 2)
+def calculate_features(image_path, window_size=5):
+    """
+    计算并返回图像的同质性、对比度、能量和熵特征矩阵。
 
-    return Homogeneity
+    参数:
+    - image_path: 图像文件的路径。
+    - window_size: 使用的窗口大小，必须是奇数。
 
+    返回:
+    - 包含四个特征矩阵的字典。
+    """
+    # 读取图像，确保为8位灰度图
+    img = io.imread(image_path)
+    img = img_as_ubyte(img)
+    # 计算边缘填充宽度
+    pad_width = window_size // 2
+    # 对图像进行边缘填充
+    img_padded = np.pad(img, pad_width, mode='edge')
 
-# 计算 GLCM 对比度
-def calcu_glcm_contrast(glcm, nbit=64):
-    '''
-    计算 GLCM 对比度
-    '''
-    contrast = np.zeros((glcm.shape[2], glcm.shape[3]), dtype=np.float32)
-    for i in range(nbit):
-        for j in range(nbit):
-            contrast += glcm[i, j] * (i - j) ** 2
+    # 初始化特征矩阵字典
+    features = {
+        'homogeneity': np.zeros((img.shape[0], img.shape[1]), dtype=np.uint8),
+        'contrast': np.zeros((img.shape[0], img.shape[1]), dtype=np.uint8),
+        'energy': np.zeros((img.shape[0], img.shape[1]), dtype=np.uint8),
+        'entropy': np.zeros((img.shape[0], img.shape[1]), dtype=np.uint8),
+    }
 
-    return contrast
+    # 遍历每个像素，计算特征
+    for feature_name in features:
+        for i in range(pad_width, img.shape[0] + pad_width):
+            for j in range(pad_width, img.shape[1] + pad_width):
+                features[feature_name][i - pad_width, j - pad_width] = calc_glcm_feature(
+                    img_padded, i, j, pad_width, feature_name, window_size
+                )
 
-
-# 计算 GLCM 熵
-def calcu_glcm_entropy(glcm, nbit=64):
-    '''
-    计算 GLCM 熵
-    '''
-    eps = 0.00001
-    entropy = np.zeros((glcm.shape[2], glcm.shape[3]), dtype=np.float32)
-    for i in range(nbit):
-        for j in range(nbit):
-            entropy -= glcm[i, j] * np.log10(glcm[i, j] + eps)
-
-    return entropy
+    return features
 
 
-# 计算 GLCM 能量
-def calcu_glcm_energy(glcm, nbit=64):
-    '''
-    计算 GLCM 能量或二阶矩
-    '''
-    energy = np.zeros((glcm.shape[2], glcm.shape[3]), dtype=np.float32)
-    for i in range(nbit):
-        for j in range(nbit):
-            energy += glcm[i, j] ** 2
+# 示例使用
+image_path = '../fastqtobmp/cache/change_to_gray/grayimage_base_1.tiff'
+features = calculate_features(image_path, window_size=5)
 
-    return energy
-
-
-# 程序入口
-if __name__ == '__main__':
-    main()
+# 打印每个特征矩阵的形状和类型以验证
+for feature_name, matrix in features.items():
+    print(f"{feature_name} matrix shape: {matrix.shape}, dtype: {matrix.dtype}")

@@ -4,7 +4,6 @@ from matplotlib import pyplot as plt
 import get_glcm
 import time
 from PIL import Image
-import glob
 import os
 
 def main():
@@ -22,21 +21,17 @@ if __name__ == '__main__':
     t = 0
 
     path = '../fastqtobmp/cache/change_to_gray/'
-    # 使用glob匹配所有符合条件的文件
-    files = glob.glob(path + 'grayimage_base_*.tiff') + glob.glob(path + 'grayimage_quality_*.tiff')
-    file_count = len(files)
+    file_count = len([name for name in os.listdir(path) if os.path.isfile(os.path.join(path, name))])
 
     print(file_count)
 
     for k in range(file_count):
-
-        # 依次处理base和quality图像
-        image = files[k]
+        image = f'../fastqtobmp/cache/change_to_gray/Quality_{k}.tiff'
 
         start = time.time()
         print('glcm:',k)
         print('---------------.0. Parameter Setting-----------------')
-        nbit = 94 # gray levels
+        nbit = 64 # gray levels
         mi, ma = 0, 255 # max gray and min gray
         slide_window = 7 # sliding window
         # step = [2, 4, 8, 16] # step
@@ -70,10 +65,10 @@ if __name__ == '__main__':
         print('---------------4. Display and Result----------------')
 
 
-        # Image.fromarray(homogeneity_image).save(f'{folder}/homogeneity_{i}.png')
-        # Image.fromarray(contrast_image).save(f'{folder}/contrast_{i}.png')
-        # Image.fromarray(entropy_image).save(f'{folder}/entropy_{i}.png')
-        # Image.fromarray(energy_image).save(f'{folder}/energy_{i}.png')
+        # Image.fromarray(homogeneity_image).save(f'{folder}/homogeneity_{i}.tiff')
+        # Image.fromarray(contrast_image).save(f'{folder}/contrast_{i}.tiff')
+        # Image.fromarray(entropy_image).save(f'{folder}/entropy_{i}.tiff')
+        # Image.fromarray(energy_image).save(f'{folder}/energy_{i}.tiff')
 
         homogeneity_image = np.array(np.uint8(homogeneity))
         contrast_image = np.array(np.uint8(contrast))
@@ -81,11 +76,11 @@ if __name__ == '__main__':
         energy_image = np.array(np.uint8(energy))
 
         # print(k)
-        Image.fromarray(homogeneity_image).save(f'{folder}/homogeneity_{k}.png')
-        Image.fromarray(contrast_image).save(f'{folder}/contrast_{k}.png')
-        Image.fromarray(entropy_image).save(f'{folder}/entropy_{k}.png')
-        Image.fromarray(energy_image).save(f'{folder}/energy_{k}.png')
-        # cv2.imwrite(r"homogeneity.png", homogeneity_images1)
+        Image.fromarray(homogeneity_image).save(f'{folder}/homogeneity_{k}.tiff')
+        Image.fromarray(contrast_image).save(f'{folder}/contrast_{k}.tiff')
+        Image.fromarray(entropy_image).save(f'{folder}/entropy_{k}.tiff')
+        Image.fromarray(energy_image).save(f'{folder}/energy_{k}.tiff')
+        # cv2.imwrite(r"homogeneity.tiff", homogeneity_images1)
 
         end = time.time()
         print('Code run time:', end - start)
