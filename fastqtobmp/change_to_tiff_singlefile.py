@@ -4,7 +4,7 @@ import tifffile as tiff
 import time
 import os
 
-def fastq_to_image_segmented(fastq_path, output_path, block_size=2 * 1024 * 1024):
+def fastq_to_image_segmented(fastq_path, output_path, block_size=32 * 1024 * 1024):
     """
     将 FASTQ 文件分批读取并转换为图像，每批的大小接近给定的 block_size。
 
@@ -73,8 +73,8 @@ def fastq_to_image_segmented(fastq_path, output_path, block_size=2 * 1024 * 1024
     return read_count, reads_per_block, block_count
 
 # 示例文件路径（需要替换为实际路径）
-fastq_path = "input/ERR3365952.fastq"
-output_path = "cache/ERR3365952/"
+fastq_path = "input/SRR8039513.fastq"
+output_path = "cache/SRR8039513/"
 
 # 调用函数处理FASTQ文件
 read_count, reads_per_block, total_blocks = fastq_to_image_segmented(fastq_path, output_path)

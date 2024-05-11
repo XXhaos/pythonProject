@@ -28,7 +28,7 @@ def compress_file_with_zpaq(input_file, output_directory, zpaq_path):
         print(f"发生未知错误: {str(e)}")
 
 # 示例用法
-input_file_path = 'input/G_prime.txt'  # 定义需要压缩的文件
-destination_directory = 'input/compressed'  # 定义输出目录
+input_file_path = 'input/SRR554369_base_1/G_prime.txt'  # 定义需要压缩的文件
+destination_directory = 'input/compressed/SRR554369_base_1'  # 定义输出目录
 zpaq_exe_path = r"D:\pythonProject\zpaq715\zpaq.exe"  # 确保这是正确的zpaq路径
 compress_file_with_zpaq(input_file_path, destination_directory, zpaq_exe_path)

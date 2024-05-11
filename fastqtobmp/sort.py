@@ -37,10 +37,10 @@ def compress_in_subfolders(input_folder, output_root):
                     # 获取压缩后文件的大小
                     compressed_size_method1 = os.path.getsize(compressed_filepath_lpaq8)
                     compressed_size_method2 = os.path.getsize(compressed_filepath_zpaq)
-                    print(compressed_size_method1)
-                    print(compressed_size_method2)
-
-                    print(f"文件 {filename} 使用lpaq8压缩后相对于zpaq的大小比: {compressed_size_method1 / compressed_size_method2:.2%}")
+                    # print(compressed_size_method1)
+                    # print(compressed_size_method2)
+                    #
+                    # print(f"文件 {filename} 使用lpaq8压缩后相对于zpaq的大小比: {compressed_size_method1 / compressed_size_method2:.2%}")
 
                     if compressed_size_method1 < compressed_size_method2:
                         shutil.copy(filepath, os.path.join(output_folder1, filename))

@@ -1,6 +1,6 @@
 import os
 import subprocess
-
+import shutil
 
 def compress_file(input_file, output_directory, lpaq8_path, compression_level='9'):
     """
@@ -44,7 +44,12 @@ def compress_lpaq8(lpaq8_path, compression_level, input_path, output_path):
 
 
 # 示例用法
-input_file_path = 'input/G_prime.txt'  # 定义需要压缩的文件
-destination_directory = 'input/compressed'  # 定义输出目录
+input_file_path1 = 'input/test/G.txt'  # 定义需要压缩的文件
+input_file_path2 = 'input/test/G_prime.txt'  # 定义需要压缩的文件
+destination_directory = 'input/compressed/test'  # 定义输出目录
 lpaq8_exe_path = r"D:\pythonProject\lpaq8\lpaq8.exe"  # 确保这是正确的lpaq8路径
-compress_file(input_file_path, destination_directory, lpaq8_exe_path)
+compress_file(input_file_path1, destination_directory, lpaq8_exe_path)
+compress_file(input_file_path2, destination_directory, lpaq8_exe_path)
+
+# 移动文件夹input/test到input/archive
+shutil.move('input/test', 'input/archive')

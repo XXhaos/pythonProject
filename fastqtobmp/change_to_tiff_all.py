@@ -3,8 +3,9 @@ import numpy as np
 import tifffile as tiff
 import time
 import os
+import shutil
 
-def fastq_to_image_segmented(fastq_path, output_path, block_size=32 * 1024 * 1024):
+def fastq_to_image_segmented(fastq_path, output_path, block_size=16 * 1024 * 1024):
     """
     将 FASTQ 文件分批读取并转换为图像，每批的大小接近给定的 block_size。
 
@@ -20,7 +21,7 @@ def fastq_to_image_segmented(fastq_path, output_path, block_size=32 * 1024 * 102
     os.makedirs(output_path, exist_ok=True)
 
     # 定义碱基到灰度值的映射
-    base_to_gray = {'A': 32, 'T': 64, 'G': 192, 'C': 224, 'N': 0}
+    # base_to_gray = {'A': 32, 'T': 64, 'G': 192, 'C': 224, 'N': 0}
 
     # 使用 SeqIO.parse() 预读取第一个 read 来确定 read 长度
     with open(fastq_path, 'r') as file:
@@ -29,21 +30,21 @@ def fastq_to_image_segmented(fastq_path, output_path, block_size=32 * 1024 * 102
 
     # 计算每个read所需的字节数（DNA序列和质量分数各占一半）
     # 注意：这里简化计算，实际情况中还需考虑其他因素，如编码等
-    bytes_per_read = read_length * 2
+    bytes_per_read = read_length
 
     # 根据block_size和bytes_per_read计算每个图像块应包含的reads数目
     reads_per_block = block_size // bytes_per_read
 
     read_count = 0
     block_count = 0
-    base_image_block = []
+    # base_image_block = []
     quality_image_block = []
 
     # 使用 SeqIO.parse() 函数逐条读取 FASTQ 文件
     with open(fastq_path, 'r') as file:
         for record in SeqIO.parse(file, "fastq"):
-            base_gray_values = [base_to_gray.get(base, 0) for base in record.seq]
-            base_image_block.append(base_gray_values)
+            # base_gray_values = [base_to_gray.get(base, 0) for base in record.seq]
+            # base_image_block.append(base_gray_values)
 
             quality_gray_values = [min(q * 2, 255) for q in record.letter_annotations["phred_quality"]]
             quality_image_block.append(quality_gray_values)
@@ -51,19 +52,19 @@ def fastq_to_image_segmented(fastq_path, output_path, block_size=32 * 1024 * 102
             read_count += 1
 
             # 当达到指定的 reads_per_block 时，保存图像块
-            if len(base_image_block) == reads_per_block:
+            if len(quality_image_block) == reads_per_block:
                 block_count += 1
-                tiff.imwrite(f"{output_path}/grayimage_base_{block_count}.tiff", np.array(base_image_block, dtype=np.uint8))
+                # tiff.imwrite(f"{output_path}/grayimage_base_{block_count}.tiff", np.array(base_image_block, dtype=np.uint8))
                 tiff.imwrite(f"{output_path}/grayimage_quality_{block_count}.tiff", np.array(quality_image_block, dtype=np.uint8))
                 print(f"图像块 {block_count} 已保存。")
 
-                base_image_block = []
+                # base_image_block = []
                 quality_image_block = []
 
     # 保存最后一个图像块（如果有剩余）
-    if base_image_block:
+    if quality_image_block:
         block_count += 1
-        tiff.imwrite(f"{output_path}/grayimage_base_{block_count}.tiff", np.array(base_image_block, dtype=np.uint8))
+        # tiff.imwrite(f"{output_path}/grayimage_base_{block_count}.tiff", np.array(base_image_block, dtype=np.uint8))
         tiff.imwrite(f"{output_path}/grayimage_quality_{block_count}.tiff", np.array(quality_image_block, dtype=np.uint8))
         print(f"最后的图像块 {block_count} 已保存。")
 
@@ -99,6 +100,9 @@ def process_all_fastq(input_directory, output_base_path):
             os.makedirs(output_path, exist_ok=True)  # 确保输出目录存在
 
             fastq_to_image_segmented(fastq_path, output_path)
+
+            # 移动fastq_path到archive
+            shutil.move(fastq_path, os.path.join(input_directory, 'archive', file_name))
 
             # 打印信息作为演示
             print(f"Processing {fastq_path} into {output_path}")
