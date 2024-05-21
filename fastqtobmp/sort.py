@@ -4,7 +4,7 @@ import shutil
 
 # 定义根目录路径
 root_input_folder = r"D:\pythonProject\fastqtobmp\cache\change_to_gray"
-root_output_folder = r"D:\pythonProject\fastqtobmp\cache\jugde"
+root_output_folder = r"D:\pythonProject\fastqtobmp\cache\judge"
 
 # 确保输出根目录存在
 os.makedirs(root_output_folder, exist_ok=True)
@@ -16,8 +16,8 @@ def compress_in_subfolders(input_folder, output_root):
     for dirpath, dirnames, filenames in os.walk(input_folder):
         for dirname in dirnames:
             subfolder_path = os.path.join(dirpath, dirname)
-            output_folder1 = os.path.join(output_root, f"{dirname}/output_folder1")
-            output_folder2 = os.path.join(output_root, f"{dirname}/output_folder2")
+            output_folder1 = os.path.join(output_root, f"{dirname}/lpaq8_compressed")
+            output_folder2 = os.path.join(output_root, f"{dirname}/zpaq_compressed")
 
             os.makedirs(output_folder1, exist_ok=True)
             os.makedirs(output_folder2, exist_ok=True)
