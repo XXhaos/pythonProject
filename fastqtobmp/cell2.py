@@ -122,28 +122,25 @@ def main():
                 break
 
     # 假设每块大小为16MB，计算每块处理的read数
-    block_size = 16 * 1024 * 1024  # 100MB
-    num_reads_per_block = block_size // (read_length * 4)
+    block_size = 16 * 1024 * 1024  # 16MB
 
-    total_reads = sum(1 for i, line in enumerate(open(input_file)) if i % 4 == 1)
+    # 读取第一块数据
+    Z = read_fastq(input_file, 0, block_size, read_length)
+    Z_prime = initialize_Z_prime(Z)
+    freq_array = initialize_frequency_array()
 
-    for start in range(0, total_reads, num_reads_per_block):
-        Z = read_fastq(input_file, start, num_reads_per_block, read_length)
-        Z_prime = initialize_Z_prime(Z)
-        freq_array = initialize_frequency_array()
+    fill_Z_prime(Z, Z_prime, freq_array)
 
-        fill_Z_prime(Z, Z_prime, freq_array)
+    frequencies = calculate_frequencies(freq_array)
+    huff_dict = huffman_encoding(frequencies)
 
-        frequencies = calculate_frequencies(freq_array)
-        huff_dict = huffman_encoding(frequencies)
+    encoded_Z_prime = reencode_Z_prime(Z_prime, huff_dict)
 
-        encoded_Z_prime = reencode_Z_prime(Z_prime, huff_dict)
+    encoded_Z_prime_path = os.path.join(output_folder, 'encoded_Z_prime_0.bin')
 
-        encoded_Z_prime_path = os.path.join(output_folder, f'encoded_Z_prime_{start}.bin')
+    save_encoded_Z_prime(encoded_Z_prime, encoded_Z_prime_path)
 
-        save_encoded_Z_prime(encoded_Z_prime, encoded_Z_prime_path)
-
-        compress_file(encoded_Z_prime_path, encoded_Z_prime_path + '.compressed')
+    compress_file(encoded_Z_prime_path, encoded_Z_prime_path + '.compressed')
 
 
 if __name__ == "__main__":
