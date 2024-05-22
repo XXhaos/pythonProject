@@ -69,6 +69,6 @@ def image_to_fastq(image_directory, fastq_output_path, block_size=32 * 1024 * 10
 
 
 # 示例用法
-image_directory = "cache/change_to_gray"  # 替换为存储图像块的文件夹路径
+image_directory = r"D:\pythonProject\fastqtobmp\input\test"  # 替换为存储图像块的文件夹路径
 fastq_output_path = "cache/change_to_fastq/restored_reads.fastq"  # 输出FASTQ文件路径
 image_to_fastq(image_directory, fastq_output_path , 1)

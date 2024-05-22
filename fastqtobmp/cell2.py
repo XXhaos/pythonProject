@@ -10,11 +10,11 @@ index_to_symbol = {0: 'A', 1: 'C', 2: 'G', 3: 'T', 4: 'N'}
 
 
 # 从FASTQ文件中读取序列并拼接成矩阵Z
-def read_fastq(file_path):
+def read_fastq(file_path, start, num_reads, read_length):
     with open(file_path, 'r') as file:
         lines = file.readlines()
-        sequences = [line.strip() for i, line in enumerate(lines) if i % 4 == 1]
-    return np.array([list(seq) for seq in sequences])
+        sequences = [line.strip() for i, line in enumerate(lines) if i % 4 == 1][start:start + num_reads]
+    return np.array([list(seq.ljust(read_length, 'N')) for seq in sequences])
 
 
 # 初始化预测矩阵Z'
@@ -105,28 +105,45 @@ def save_encoded_Z_prime(encoded_Z_prime, file_path):
 
 # 调用外部压缩算法
 def compress_file(input_path, output_path):
-    os.system(f'D:\\pythonProject\\lpaq8\\lpaq8.exe c {input_path} {output_path}')
+    os.system(f'D:\\pythonProject\\lpaq8\\lpaq8.exe c {input_path} {output_path} 9')
 
 
 # 主函数
 def main():
-    input_file = 'path_to_your_fastq_file.fastq'
-    Z = read_fastq(input_file)
-    Z_prime = initialize_Z_prime(Z)
-    freq_array = initialize_frequency_array()
+    input_file = r'D:\pythonProject\fastqtobmp\input\ERR3365952.fastq'
+    output_folder = r'D:\pythonProject\fastqtobmp\input\compressed'
+    os.makedirs(output_folder, exist_ok=True)
 
-    fill_Z_prime(Z, Z_prime, freq_array)
+    # 读取第一条read的长度
+    with open(input_file, 'r') as file:
+        for i, line in enumerate(file):
+            if i == 1:
+                read_length = len(line.strip())
+                break
 
-    frequencies = calculate_frequencies(freq_array)
-    huff_dict = huffman_encoding(frequencies)
+    # 假设每块大小为16MB，计算每块处理的read数
+    block_size = 16 * 1024 * 1024  # 100MB
+    num_reads_per_block = block_size // (read_length * 4)
 
-    encoded_Z_prime = reencode_Z_prime(Z_prime, huff_dict)
+    total_reads = sum(1 for i, line in enumerate(open(input_file)) if i % 4 == 1)
 
-    encoded_Z_prime_path = 'encoded_Z_prime.bin'
+    for start in range(0, total_reads, num_reads_per_block):
+        Z = read_fastq(input_file, start, num_reads_per_block, read_length)
+        Z_prime = initialize_Z_prime(Z)
+        freq_array = initialize_frequency_array()
 
-    save_encoded_Z_prime(encoded_Z_prime, encoded_Z_prime_path)
+        fill_Z_prime(Z, Z_prime, freq_array)
 
-    compress_file(encoded_Z_prime_path, encoded_Z_prime_path + '.compressed')
+        frequencies = calculate_frequencies(freq_array)
+        huff_dict = huffman_encoding(frequencies)
+
+        encoded_Z_prime = reencode_Z_prime(Z_prime, huff_dict)
+
+        encoded_Z_prime_path = os.path.join(output_folder, f'encoded_Z_prime_{start}.bin')
+
+        save_encoded_Z_prime(encoded_Z_prime, encoded_Z_prime_path)
+
+        compress_file(encoded_Z_prime_path, encoded_Z_prime_path + '.compressed')
 
 
 if __name__ == "__main__":
