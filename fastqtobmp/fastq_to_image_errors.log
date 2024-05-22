@@ -1,2 +1,0 @@
-2024-05-11 10:56:38,047:ERROR:错误处理文件: input\SRR11550257_1.fastq 错误: setting an array element with a sequence. The requested array has an inhomogeneous shape after 1 dimensions. The detected shape was (1678027,) + inhomogeneous part.
-2024-05-11 11:58:45,742:ERROR:错误处理文件: input\SRR15725671.fastq 错误: setting an array element with a sequence. The requested array has an inhomogeneous shape after 1 dimensions. The detected shape was (16777216,) + inhomogeneous part.

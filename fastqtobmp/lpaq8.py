@@ -1,6 +1,5 @@
 import os
 import subprocess
-import shutil
 
 def compress_file(input_file, output_directory, lpaq8_path, compression_level='9'):
     """
@@ -43,13 +42,30 @@ def compress_lpaq8(lpaq8_path, compression_level, input_path, output_path):
         print(f"发生未知错误: {str(e)}")
 
 
-# 示例用法
-input_file_path1 = 'input/test/G.txt'  # 定义需要压缩的文件
-input_file_path2 = 'input/test/G_prime.txt'  # 定义需要压缩的文件
-destination_directory = 'input/compressed/test'  # 定义输出目录
-lpaq8_exe_path = r"D:\pythonProject\lpaq8\lpaq8.exe"  # 确保这是正确的lpaq8路径
-compress_file(input_file_path1, destination_directory, lpaq8_exe_path)
-compress_file(input_file_path2, destination_directory, lpaq8_exe_path)
+def compress_all_files_in_directory(input_directory, output_directory, lpaq8_path, compression_level='9'):
+    """
+    压缩目录中的所有文件。
 
-# 移动文件夹input/test到input/archive
-shutil.move('input/test', 'input/archive')
+    参数:
+    - input_directory: 输入目录路径。
+    - output_directory: 输出目录路径。
+    - lpaq8_path: lpaq8压缩器的完整路径。
+    - compression_level: 压缩级别（默认为9，范围0-9）。
+    """
+    for root, dirs, files in os.walk(input_directory):
+        for file in files:
+            input_file_path = os.path.join(root, file)
+            compress_file(input_file_path, output_directory, lpaq8_path, compression_level)
+
+
+# 示例用法
+input_directory1 = r"D:\pythonProject\fastqtobmp\input\compressed\test\g" # 定义需要压缩的文件路径
+input_directory2 = r"D:\pythonProject\fastqtobmp\input\compressed\test\g_prime"  # 定义需要压缩的文件路径
+destination_directory1 = r'D:\pythonProject\fastqtobmp\input\compressed\g_lpaq8'  # 定义输出目录
+destination_directory2 = r'D:\pythonProject\fastqtobmp\input\compressed\g_prime_lpaq8'  # 定义输出目录
+lpaq8_exe_path = r"D:\pythonProject\lpaq8\lpaq8.exe"  # 确保这是正确的lpaq8路径
+
+# 压缩目录中的所有文件
+compress_all_files_in_directory(input_directory1, destination_directory1, lpaq8_exe_path)
+compress_all_files_in_directory(input_directory2, destination_directory2, lpaq8_exe_path)
+
