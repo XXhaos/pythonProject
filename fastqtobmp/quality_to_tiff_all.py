@@ -44,15 +44,19 @@ def process_all_fastq(input_directory, output_base_path):
     处理 input_directory 下的所有 .fastq 文件，并将结果输出到以文件名命名的目录中。
     """
     for file_name in os.listdir(input_directory):
+        # 忽略ERR3365952.fastq文件
+        if file_name == 'ERR3365952.fastq':
+            continue
         if file_name.endswith('.fastq'):
-            fastq_path = os.path.join(input_directory, file_name)
-            output_path = os.path.join(output_base_path, os.path.splitext(file_name)[0] + '_grayimage')
-            os.makedirs(output_path, exist_ok=True)
             try:
                 fastq_to_image_segmented(fastq_path, output_path)
             except Exception as e:
                 print(f"处理文件 {fastq_path} 时遇到错误：{e}，跳过该文件。")
                 continue  # 发生异常时跳过当前文件，继续处理下一个文件
+            fastq_path = os.path.join(input_directory, file_name)
+            output_path = os.path.join(output_base_path, os.path.splitext(file_name)[0] + '_grayimage')
+            os.makedirs(output_path, exist_ok=True)
+
             shutil.move(fastq_path, os.path.join(input_directory, 'archive', file_name))
             print(f"Processing {fastq_path} into {output_path}")
 

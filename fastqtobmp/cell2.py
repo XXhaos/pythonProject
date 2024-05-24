@@ -1,147 +1,84 @@
 import os
 import numpy as np
-from collections import defaultdict
-from itertools import product
-from heapq import heappush, heappop, heapify
+from Bio import SeqIO
+import time
 
-# 定义符号到索引的映射和反向映射
+# 符号到索引的映射
 symbol_to_index = {'A': 0, 'C': 1, 'G': 2, 'T': 3, 'N': 4}
-index_to_symbol = {0: 'A', 1: 'C', 2: 'G', 3: 'T', 4: 'N'}
+index_to_symbol = {0: 'A', 1: 'C', 2: 'G', 3: 'T', 4: 'N', 5: 'P'}
 
-
-# 从FASTQ文件中读取序列并拼接成矩阵Z
-def read_fastq(file_path, start, num_reads, read_length):
-    with open(file_path, 'r') as file:
-        lines = file.readlines()
-        sequences = [line.strip() for i, line in enumerate(lines) if i % 4 == 1][start:start + num_reads]
-    return np.array([list(seq.ljust(read_length, 'N')) for seq in sequences])
-
-
-# 初始化预测矩阵Z'
-def initialize_Z_prime(Z):
-    Z_prime = np.zeros(Z.shape, dtype=int)
-    Z_prime[:4, :4] = np.vectorize(symbol_to_index.get)(Z[:4, :4])
-    return Z_prime
-
-
-# 生成四维频率数组
-def initialize_frequency_array():
-    return np.zeros((5, 5, 5, 5), dtype=int)
-
-
-# 更新频率数组
-def update_frequency_array(freq_array, left_up, left, up, current):
-    freq_array[left_up, left, up, current] += 1
-
-
-# 预测值
-def predict_value(freq_array, left_up, left, up):
-    predictions = freq_array[left_up, left, up]
-    return np.argmax(predictions)
-
-
-# 填充预测矩阵Z'
 def fill_Z_prime(Z, Z_prime, freq_array):
     rows, cols = Z.shape
-    for i in range(4, rows):
-        for j in range(4, cols):
-            left_up = symbol_to_index[Z[i - 1, j - 1]] if i > 0 and j > 0 else 0
-            left = symbol_to_index[Z[i, j - 1]] if j > 0 else 0
-            up = symbol_to_index[Z[i - 1, j]] if i > 0 else 0
-            current = symbol_to_index[Z[i, j]]
+    for i in range(1, rows):
+        for j in range(1, cols):
+            left_up = Z[i - 1, j - 1] if i > 0 and j > 0 else 0
+            left = Z[i, j - 1] if j > 0 else 0
+            up = Z[i - 1, j] if i > 0 else 0
+            current = Z[i, j]
 
             prediction = predict_value(freq_array, left_up, left, up)
+
             if prediction == current:
-                Z_prime[i, j] = -1  # 用-1表示预测正确
+                Z_prime[i, j] = 5  # 用5表示预测正确
             else:
-                Z_prime[i, j] = current
+                Z_prime[i, j] = current  # 用当前值表示预测错误
 
             update_frequency_array(freq_array, left_up, left, up, current)
 
+def predict_value(freq_array, left_up, left, up):
+    frequencies = freq_array[left_up, left, up]
+    # 如果所有频率都为0，则返回-1表示无法预测
+    if np.all(frequencies == 0):
+        return -1
+    return np.argmax(frequencies)
 
-# 计算每个符号的出现频率
-def calculate_frequencies(freq_array):
-    frequencies = np.sum(freq_array, axis=(0, 1, 2))
-    freq_dict = {index_to_symbol[i]: freq for i, freq in enumerate(frequencies)}
-    freq_dict[-1] = 0  # 添加-1的频率
-    return freq_dict
+def update_frequency_array(freq_array, left_up, left, up, current):
+    freq_array[left_up, left, up, current] += 1
 
-
-# 生成哈夫曼编码
-def huffman_encoding(frequencies):
-    heap = [[weight, [symbol, ""]] for symbol, weight in frequencies.items()]
-    heapify(heap)
-    while len(heap) > 1:
-        lo = heappop(heap)
-        hi = heappop(heap)
-        for pair in lo[1:]:
-            pair[1] = '0' + pair[1]
-        for pair in hi[1:]:
-            pair[1] = '1' + pair[1]
-        heappush(heap, [lo[0] + hi[0]] + lo[1:] + hi[1:])
-    huff_dict = sorted(heappop(heap)[1:], key=lambda p: (len(p[-1]), p))
-    return {symbol: code for symbol, code in huff_dict}
-
-
-# 用哈夫曼编码重新编码矩阵Z'
-def reencode_Z_prime(Z_prime, huff_dict):
-    rows, cols = Z_prime.shape
-    encoded_Z_prime = ""
-    for i in range(rows):
-        for j in range(cols):
-            symbol = Z_prime[i, j]
-            if symbol == -1:
-                encoded_Z_prime += huff_dict['-1']
-            else:
-                encoded_Z_prime += huff_dict[symbol]
-    return encoded_Z_prime
-
-
-# 保存重新编码的Z'为字节流
-def save_encoded_Z_prime(encoded_Z_prime, file_path):
-    with open(file_path, 'wb') as file:
-        file.write(encoded_Z_prime.encode())
-
-
-# 调用外部压缩算法
-def compress_file(input_path, output_path):
-    os.system(f'D:\\pythonProject\\lpaq8\\lpaq8.exe c {input_path} {output_path} 9')
-
-
-# 主函数
 def main():
-    input_file = r'D:\pythonProject\fastqtobmp\input\ERR3365952.fastq'
-    output_folder = r'D:\pythonProject\fastqtobmp\input\compressed'
-    os.makedirs(output_folder, exist_ok=True)
+    input_file = "D:\\pythonProject\\fastqtobmp\\input\\ERR3365952.fastq"
+    output_folder = os.path.dirname(input_file)
+    chunk_size = 16 * 1024 * 1024  # 16 MB
 
-    # 读取第一条read的长度
-    with open(input_file, 'r') as file:
-        for i, line in enumerate(file):
-            if i == 1:
-                read_length = len(line.strip())
-                break
+    reads = []
+    total_size = 0
+    for record in SeqIO.parse(input_file, "fastq"):
+        seq = str(record.seq)
+        total_size += len(seq)
+        reads.append(seq)
+        if total_size >= chunk_size:
+            break
 
-    # 假设每块大小为16MB，计算每块处理的read数
-    block_size = 16 * 1024 * 1024  # 16MB
+    read_length = len(reads[0])
+    num_reads_in_chunk = chunk_size // read_length
 
-    # 读取第一块数据
-    Z = read_fastq(input_file, 0, block_size, read_length)
-    Z_prime = initialize_Z_prime(Z)
-    freq_array = initialize_frequency_array()
+    Z = np.array([[symbol_to_index[base] for base in read] for read in reads[:num_reads_in_chunk]])
+    Z_prime = np.zeros_like(Z, dtype=int)
 
+    # 初始化Z'的第一行和第一列
+    Z_prime[0, :] = Z[0, :]
+    Z_prime[:, 0] = Z[:, 0]
+
+    # 初始化频率数组
+    freq_array = np.zeros((5, 5, 5, 5), dtype=int)
+
+    # 填充Z_prime
     fill_Z_prime(Z, Z_prime, freq_array)
 
-    frequencies = calculate_frequencies(freq_array)
-    huff_dict = huffman_encoding(frequencies)
+    # 将Z和Z_prime转换为txt文件
+    Z_path = os.path.join(output_folder, 'Z_0.txt')
+    Z_prime_path = os.path.join(output_folder, 'Z_prime_0.txt')
 
-    encoded_Z_prime = reencode_Z_prime(Z_prime, huff_dict)
+    np.savetxt(Z_path, Z, fmt='%d')
+    np.savetxt(Z_prime_path, Z_prime, fmt='%d')
 
-    encoded_Z_prime_path = os.path.join(output_folder, 'encoded_Z_prime_0.bin')
+    # 调用lpaq8压缩
+    start_time = time.time()
+    os.system(f'D:\\pythonProject\\lpaq8\\lpaq8.exe 9 {Z_path} {Z_path}.compressed')
+    os.system(f'D:\\pythonProject\\lpaq8\\lpaq8.exe 9 {Z_prime_path} {Z_prime_path}.compressed')
+    end_time = time.time()
 
-    save_encoded_Z_prime(encoded_Z_prime, encoded_Z_prime_path)
-
-    compress_file(encoded_Z_prime_path, encoded_Z_prime_path + '.compressed')
-
+    print(f'压缩完成，运行时间: {end_time - start_time:.2f} 秒')
 
 if __name__ == "__main__":
     main()
