@@ -35,50 +35,69 @@ def predict_value(freq_array, left_up, left, up):
 def update_frequency_array(freq_array, left_up, left, up, current):
     freq_array[left_up, left, up, current] += 1
 
-def main():
-    input_file = "D:\\pythonProject\\fastqtobmp\\input\\ERR3365952.fastq"
-    output_folder = os.path.dirname(input_file)
-    chunk_size = 16 * 1024 * 1024  # 16 MB
-
-    reads = []
-    total_size = 0
-    for record in SeqIO.parse(input_file, "fastq"):
-        seq = str(record.seq)
-        total_size += len(seq)
-        reads.append(seq)
-        if total_size >= chunk_size:
-            break
-
+def process_chunk(reads, chunk_index, freq_array):
     read_length = len(reads[0])
-    num_reads_in_chunk = chunk_size // read_length
-
-    Z = np.array([[symbol_to_index[base] for base in read] for read in reads[:num_reads_in_chunk]])
+    Z = np.array([[symbol_to_index[base] for base in read] for read in reads])
     Z_prime = np.zeros_like(Z, dtype=int)
 
     # 初始化Z'的第一行和第一列
     Z_prime[0, :] = Z[0, :]
     Z_prime[:, 0] = Z[:, 0]
 
-    # 初始化频率数组
-    freq_array = np.zeros((5, 5, 5, 5), dtype=int)
-
-    # 填充Z_prime
+    # 填充Z_prime剩余部分
     fill_Z_prime(Z, Z_prime, freq_array)
 
+    # 创建输出目录
+    Z_output_folder = "D:\\pythonProject\\fastqtobmp\\input\\Z"
+    Z_prime_output_folder = "D:\\pythonProject\\fastqtobmp\\input\\Z_prime"
+    Z_compress_output_folder = "D:\\pythonProject\\fastqtobmp\\input\\Z_compress"
+    Z_prime_compress_output_folder = "D:\\pythonProject\\fastqtobmp\\input\\Z_prime_compress"
+
+    os.makedirs(Z_output_folder, exist_ok=True)
+    os.makedirs(Z_prime_output_folder, exist_ok=True)
+    os.makedirs(Z_compress_output_folder, exist_ok=True)
+    os.makedirs(Z_prime_compress_output_folder, exist_ok=True)
+
     # 将Z和Z_prime转换为txt文件
-    Z_path = os.path.join(output_folder, 'Z_0.txt')
-    Z_prime_path = os.path.join(output_folder, 'Z_prime_0.txt')
+    Z_path = os.path.join(Z_output_folder, f'Z_{chunk_index}.txt')
+    Z_prime_path = os.path.join(Z_prime_output_folder, f'Z_prime_{chunk_index}.txt')
 
     np.savetxt(Z_path, Z, fmt='%d')
     np.savetxt(Z_prime_path, Z_prime, fmt='%d')
 
     # 调用lpaq8压缩
-    start_time = time.time()
-    os.system(f'D:\\pythonProject\\lpaq8\\lpaq8.exe 9 {Z_path} {Z_path}.compressed')
-    os.system(f'D:\\pythonProject\\lpaq8\\lpaq8.exe 9 {Z_prime_path} {Z_prime_path}.compressed')
-    end_time = time.time()
+    Z_compress_path = os.path.join(Z_compress_output_folder, f'Z_{chunk_index}.txt.compressed')
+    Z_prime_compress_path = os.path.join(Z_prime_compress_output_folder, f'Z_prime_{chunk_index}.txt.compressed')
 
-    print(f'压缩完成，运行时间: {end_time - start_time:.2f} 秒')
+    os.system(f'D:\\pythonProject\\lpaq8\\lpaq8.exe 9 {Z_path} {Z_compress_path}')
+    os.system(f'D:\\pythonProject\\lpaq8\\lpaq8.exe 9 {Z_prime_path} {Z_prime_compress_path}')
+
+def main():
+    start_time = time.time()
+    input_file = "D:\\pythonProject\\fastqtobmp\\input\\ERR3365952.fastq"
+    chunk_size = 16 * 1024 * 1024  # 16 MB
+
+    freq_array = np.zeros((5, 5, 5, 5), dtype=int)
+    chunk_index = 0
+    reads = []
+    total_size = 0
+
+    for record in SeqIO.parse(input_file, "fastq"):
+        seq = str(record.seq)
+        total_size += len(seq)
+        reads.append(seq)
+        if total_size >= chunk_size:
+            process_chunk(reads, chunk_index, freq_array)
+            chunk_index += 1
+            reads = []
+            total_size = 0
+
+    # 处理剩余部分
+    if reads:
+        process_chunk(reads, chunk_index, freq_array)
+
+    end_time = time.time()
+    print(f'所有块处理完成，运行时间: {end_time - start_time:.2f} 秒')
 
 if __name__ == "__main__":
     main()
