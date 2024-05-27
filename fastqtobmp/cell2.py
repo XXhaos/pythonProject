@@ -27,7 +27,6 @@ def fill_Z_prime(Z, Z_prime, freq_array):
 
 def predict_value(freq_array, left_up, left, up):
     frequencies = freq_array[left_up, left, up]
-    # 如果所有频率都为0，则返回-1表示无法预测
     if np.all(frequencies == 0):
         return -1
     return np.argmax(frequencies)
@@ -35,12 +34,15 @@ def predict_value(freq_array, left_up, left, up):
 def update_frequency_array(freq_array, left_up, left, up, current):
     freq_array[left_up, left, up, current] += 1
 
-def process_chunk(reads, chunk_index, freq_array):
+def process_chunk(reads, chunk_index):
     read_length = len(reads[0])
     Z = np.array([[symbol_to_index[base] for base in read] for read in reads])
     Z_prime = np.zeros_like(Z, dtype=int)
 
-    # 初始化Z'的第一行和第一列
+    # 初始化独立的频率数组
+    freq_array = np.zeros((5, 5, 5, 5), dtype=int)
+
+    # 初始化Z_prime的第一行和第一列
     Z_prime[0, :] = Z[0, :]
     Z_prime[:, 0] = Z[:, 0]
 
@@ -77,7 +79,6 @@ def main():
     input_file = "D:\\pythonProject\\fastqtobmp\\input\\ERR3365952.fastq"
     chunk_size = 16 * 1024 * 1024  # 16 MB
 
-    freq_array = np.zeros((5, 5, 5, 5), dtype=int)
     chunk_index = 0
     reads = []
     total_size = 0
@@ -87,14 +88,14 @@ def main():
         total_size += len(seq)
         reads.append(seq)
         if total_size >= chunk_size:
-            process_chunk(reads, chunk_index, freq_array)
+            process_chunk(reads, chunk_index)
             chunk_index += 1
             reads = []
             total_size = 0
 
     # 处理剩余部分
     if reads:
-        process_chunk(reads, chunk_index, freq_array)
+        process_chunk(reads, chunk_index)
 
     end_time = time.time()
     print(f'所有块处理完成，运行时间: {end_time - start_time:.2f} 秒')

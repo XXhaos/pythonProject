@@ -1,5 +1,6 @@
 import os
 import numpy as np
+import time
 
 # 定义映射
 symbol_to_index = {'A': 0, 'C': 1, 'G': 2, 'T': 3, 'N': 4}
@@ -31,9 +32,12 @@ def predict_value(freq_array, left_up, left, up):
 def update_frequency_array(freq_array, left_up, left, up, current):
     freq_array[left_up, left, up, current] += 1
 
-def restore_Z_from_Z_prime(z_prime_path, z_output_path, freq_array):
+def restore_Z_from_Z_prime(z_prime_path, z_output_path):
     Z_prime = np.loadtxt(z_prime_path, dtype=int)
     Z = np.zeros_like(Z_prime, dtype=int)
+
+    # 初始化独立的频率数组
+    freq_array = np.zeros((5, 5, 5, 5), dtype=int)
 
     # 初始化Z的第一行和第一列
     Z[:, 0] = Z_prime[:, 0]
@@ -46,11 +50,13 @@ def restore_Z_from_Z_prime(z_prime_path, z_output_path, freq_array):
     np.savetxt(z_output_path, Z, fmt='%d')
 
 def main():
+    # 记录开始时间
+    start_time = time.time()
+
     input_folder = "D:\\pythonProject\\fastqtobmp\\input\\Z_prime"
     output_folder = "D:\\pythonProject\\fastqtobmp\\input\\decell2"
     os.makedirs(output_folder, exist_ok=True)
 
-    freq_array = np.zeros((5, 5, 5, 5), dtype=int)
     z_prime_files = [f for f in os.listdir(input_folder) if f.startswith('Z_prime_') and f.endswith('.txt')]
 
     for z_prime_file in z_prime_files:
@@ -58,9 +64,12 @@ def main():
         z_prime_path = os.path.join(input_folder, z_prime_file)
         z_output_path = os.path.join(output_folder, f'Z_{chunk_index}.txt')
 
-        restore_Z_from_Z_prime(z_prime_path, z_output_path, freq_array)
+        restore_Z_from_Z_prime(z_prime_path, z_output_path)
         print(f'{z_prime_file} 还原完成，保存为 {z_output_path}')
 
+    # 记录结束时间
+    end_time = time.time()
+    print(f'所有文件还原完成，耗时 {end_time - start_time:.2f} 秒')
     print('所有文件还原完成')
 
 if __name__ == "__main__":
