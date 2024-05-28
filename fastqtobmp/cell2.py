@@ -50,33 +50,36 @@ def process_chunk(reads, chunk_index):
     fill_Z_prime(Z, Z_prime, freq_array)
 
     # 创建输出目录
-    Z_output_folder = "D:\\pythonProject\\fastqtobmp\\input\\Z"
-    Z_prime_output_folder = "D:\\pythonProject\\fastqtobmp\\input\\Z_prime"
-    Z_compress_output_folder = "D:\\pythonProject\\fastqtobmp\\input\\Z_compress"
+    # Z_output_folder = "D:\\pythonProject\\fastqtobmp\\input\\Z"
+    # Z_prime_output_folder = "D:\\pythonProject\\fastqtobmp\\input\\Z_prime"
+    # Z_compress_output_folder = "D:\\pythonProject\\fastqtobmp\\input\\Z_compress"
     Z_prime_compress_output_folder = "D:\\pythonProject\\fastqtobmp\\input\\Z_prime_compress"
 
-    os.makedirs(Z_output_folder, exist_ok=True)
-    os.makedirs(Z_prime_output_folder, exist_ok=True)
-    os.makedirs(Z_compress_output_folder, exist_ok=True)
+    # os.makedirs(Z_output_folder, exist_ok=True)
+    # os.makedirs(Z_prime_output_folder, exist_ok=True)
+    # os.makedirs(Z_compress_output_folder, exist_ok=True)
     os.makedirs(Z_prime_compress_output_folder, exist_ok=True)
 
     # 将Z和Z_prime转换为txt文件
-    Z_path = os.path.join(Z_output_folder, f'Z_{chunk_index}.txt')
-    Z_prime_path = os.path.join(Z_prime_output_folder, f'Z_prime_{chunk_index}.txt')
+    # Z_path = os.path.join(Z_output_folder, f'Z_{chunk_index}.txt')
+    Z_prime_path = os.path.join(Z_prime_compress_output_folder, f'Z_prime_{chunk_index}.txt')
 
-    np.savetxt(Z_path, Z, fmt='%d')
+    # np.savetxt(Z_path, Z, fmt='%d')
     np.savetxt(Z_prime_path, Z_prime, fmt='%d')
 
     # 调用lpaq8压缩
-    Z_compress_path = os.path.join(Z_compress_output_folder, f'Z_{chunk_index}.txt.compressed')
+    # Z_compress_path = os.path.join(Z_compress_output_folder, f'Z_{chunk_index}.txt.compressed')
     Z_prime_compress_path = os.path.join(Z_prime_compress_output_folder, f'Z_prime_{chunk_index}.txt.compressed')
 
-    os.system(f'D:\\pythonProject\\lpaq8\\lpaq8.exe 9 {Z_path} {Z_compress_path}')
+    # os.system(f'D:\\pythonProject\\lpaq8\\lpaq8.exe 9 {Z_path} {Z_compress_path}')
     os.system(f'D:\\pythonProject\\lpaq8\\lpaq8.exe 9 {Z_prime_path} {Z_prime_compress_path}')
+
+    # 删除未压缩的Z_prime文件
+    os.remove(Z_prime_path)
 
 def main():
     start_time = time.time()
-    input_file = "D:\\pythonProject\\fastqtobmp\\input\\ERR3365952.fastq"
+    input_file = "D:\\pythonProject\\fastqtobmp\\input\\SRR554369.fastq"
     chunk_size = 16 * 1024 * 1024  # 16 MB
 
     chunk_index = 0
