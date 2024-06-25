@@ -1,107 +1,135 @@
 import os
 import numpy as np
-from Bio import SeqIO
+from collections import defaultdict
+from itertools import product
+from PIL import Image
 import time
 
-# 符号到索引的映射
-symbol_to_index = {'A': 0, 'C': 1, 'G': 2, 'T': 3, 'N': 4}
-index_to_symbol = {0: 'A', 1: 'C', 2: 'G', 3: 'T', 4: 'N', 5: 'P'}
+# 定义输入和输出文件夹路径
+input_folder = r"D:\pythonProject\fastqtobmp\cache\change_to_gray\SRR554369_grayimage"
+output_folder = r'D:\pythonProject\fastqtobmp\input\compressed\change_to_gray'
 
-def fill_Z_prime(Z, Z_prime, freq_array):
-    rows, cols = Z.shape
-    for i in range(1, rows):
-        for j in range(1, cols):
-            left_up = Z[i - 1, j - 1] if i > 0 and j > 0 else 0
-            left = Z[i, j - 1] if j > 0 else 0
-            up = Z[i - 1, j] if i > 0 else 0
-            current = Z[i, j]
+# 定义g和g_prime的输出子目录
+g_output_folder = os.path.join(output_folder, 'g')
+g_prime_output_folder = os.path.join(output_folder, 'g_prime')
 
-            prediction = predict_value(freq_array, left_up, left, up)
+# 创建g和g_prime子目录（如果不存在）
+os.makedirs(g_output_folder, exist_ok=True)
+os.makedirs(g_prime_output_folder, exist_ok=True)
 
-            if prediction == current:
-                Z_prime[i, j] = 5  # 用5表示预测正确
+# 定义可能的元素列表
+elements = [0, 32, 64, 192, 224]
+# 定义规则表，此处使用提供的规则表
+rule_table = []
+
+# 添加所有五个值的可能搭配到规则库
+values = [0, 32, 64, 192, 224]
+combinations = list(product(values, repeat=4))
+
+for combination in combinations:
+    rule_table.append(combination)
+
+# 初始化规则字典，记录规则的使用次数
+rules_dict = defaultdict(int)
+
+# 按照 32， 224， 192， 64， 0 的顺序对规则表进行排序
+sort_order = [32, 224, 192, 64, 0]
+rule_table.sort(key=lambda x: (sort_order.index(x[0]), sort_order.index(x[1]), sort_order.index(x[2]), sort_order.index(x[3])))
+
+# 获取输入文件夹中的所有 .tiff 文件，并按照数字顺序排序
+tiff_files = sorted([f for f in os.listdir(input_folder) if f.endswith('.tiff')], key=lambda x: int(x.split('_')[-1].split('.')[0]))
+
+for tiff_file in tiff_files:
+    start_time = time.time()  # 开始计时
+
+    # 加载图像文件
+    img_path = os.path.join(input_folder, tiff_file)
+    img = Image.open(img_path)
+
+    # 转换为灰度图像
+    img_gray = img.convert('L')
+
+    # 将灰度图像转换为NumPy数组
+    G = np.array(img_gray)
+    # 定义初始的灰度矩阵G'，只保留左上角4*4的灰度值，其余矩阵元素置为0
+    G_prime = np.zeros((G.shape[0], G.shape[1]))
+    G_prime[:(G.shape[0] // 5), :(G.shape[1] // 1000)] = G[:(G.shape[0] // 5), :(G.shape[1] // 1000)]
+
+
+    for i in range(0, G.shape[0] // 5):
+        for j in range(0, G.shape[1] // 1000):
+            center = G[i, j]
+            if i == 0:
+                up = 0
             else:
-                Z_prime[i, j] = current  # 用当前值表示预测错误
+                up = G[i - 1, j]
+            if j == 0:
+                left = 0
+            else:
+                left = G[i, j - 1]
+            if i != 0 and j != 0:
+                left_up = G[i - 1, j - 1]
+            else:
+                left_up = 0
+            matched_rule = (up, left_up, left, center)
+            rules_dict[matched_rule] += 1
 
-            update_frequency_array(freq_array, left_up, left, up, current)
+    for i in range(0, G.shape[0]):
+        for j in range(0, G.shape[1]):
+            if i >= (G.shape[0] // 5) or j >= (G.shape[1] // 1000):
+                center = G[i, j]
+                if i == 0:
+                    up = 0
+                else:
+                    up = G[i - 1, j]
+                if j == 0:
+                    left = 0
+                else:
+                    left = G[i, j - 1]
+                if i != 0 and j != 0:
+                    left_up = G[i - 1, j - 1]
+                else:
+                    left_up = 0
+                matched_rule = (up, left_up, left, center)
+                matched_rule1 = (up, left_up, left, 32)
+                matched_rule2 = (up, left_up, left, 224)
+                matched_rule3 = (up, left_up, left, 192)
+                matched_rule4 = (up, left_up, left, 64)
+                matched_rule5 = (up, left_up, left, 0)
 
-def predict_value(freq_array, left_up, left, up):
-    frequencies = freq_array[left_up, left, up]
-    if np.all(frequencies == 0):
-        return -1
-    return np.argmax(frequencies)
+                matched_rules = [matched_rule1, matched_rule2, matched_rule3, matched_rule4, matched_rule5]
+                max_freq = -1
+                top_rule = None
 
-def update_frequency_array(freq_array, left_up, left, up, current):
-    freq_array[left_up, left, up, current] += 1
+                for rule in matched_rules:
+                    freq = rules_dict[rule]
+                    if freq > max_freq:
+                        max_freq = freq
+                        top_rule = rule
 
-def process_chunk(reads, chunk_index):
-    read_length = len(reads[0])
-    Z = np.array([[symbol_to_index[base] for base in read] for read in reads])
-    Z_prime = np.zeros_like(Z, dtype=int)
+                # 如果规则中心与当前元素相同，则将G_prime[i, j]赋值为1，否则赋值为当前元素
+                G_prime[i, j] = 1 if top_rule[3] == center else center
+            # 更新规则字典中该规则的频率
+                rules_dict[matched_rule] += 1
 
-    # 初始化独立的频率数组
-    freq_array = np.zeros((5, 5, 5, 5), dtype=int)
 
-    # 初始化Z_prime的第一行和第一列
-    Z_prime[0, :] = Z[0, :]
-    Z_prime[:, 0] = Z[:, 0]
+    # 构建输出文件路径
+    output_name = os.path.splitext(tiff_file)[0]
+    g_file_path = os.path.join(g_output_folder, f'{output_name}_g.tiff')
+    g_prime_file_path = os.path.join(g_prime_output_folder, f'{output_name}_g_prime.tiff')
 
-    # 填充Z_prime剩余部分
-    fill_Z_prime(Z, Z_prime, freq_array)
+    # 将G矩阵转换为图像并保存为TIFF文件
+    g_img = Image.fromarray(G.astype(np.uint8))
+    g_img.save(g_file_path)
 
-    # 创建输出目录
-    # Z_output_folder = "D:\\pythonProject\\fastqtobmp\\input\\Z"
-    # Z_prime_output_folder = "D:\\pythonProject\\fastqtobmp\\input\\Z_prime"
-    # Z_compress_output_folder = "D:\\pythonProject\\fastqtobmp\\input\\Z_compress"
-    Z_prime_compress_output_folder = "D:\\pythonProject\\fastqtobmp\\input\\Z_prime_compress"
+    # 将G_prime矩阵转换为图像并保存为TIFF文件
+    g_prime_img = Image.fromarray(G_prime.astype(np.uint8))
+    g_prime_img.save(g_prime_file_path)
 
-    # os.makedirs(Z_output_folder, exist_ok=True)
-    # os.makedirs(Z_prime_output_folder, exist_ok=True)
-    # os.makedirs(Z_compress_output_folder, exist_ok=True)
-    os.makedirs(Z_prime_compress_output_folder, exist_ok=True)
 
-    # 将Z和Z_prime转换为txt文件
-    # Z_path = os.path.join(Z_output_folder, f'Z_{chunk_index}.txt')
-    Z_prime_path = os.path.join(Z_prime_compress_output_folder, f'Z_prime_{chunk_index}.txt')
+    end_time = time.time()  # 结束计时
+    elapsed_time = end_time - start_time  # 计算运行时间
 
-    # np.savetxt(Z_path, Z, fmt='%d')
-    np.savetxt(Z_prime_path, Z_prime, fmt='%d')
+    print(f'{tiff_file} 处理完成，运行时间: {elapsed_time:.2f} 秒')
 
-    # 调用lpaq8压缩
-    # Z_compress_path = os.path.join(Z_compress_output_folder, f'Z_{chunk_index}.txt.compressed')
-    Z_prime_compress_path = os.path.join(Z_prime_compress_output_folder, f'Z_prime_{chunk_index}.txt.compressed')
-
-    # os.system(f'D:\\pythonProject\\lpaq8\\lpaq8.exe 9 {Z_path} {Z_compress_path}')
-    os.system(f'D:\\pythonProject\\lpaq8\\lpaq8.exe 9 {Z_prime_path} {Z_prime_compress_path}')
-
-    # 删除未压缩的Z_prime文件
-    os.remove(Z_prime_path)
-
-def main():
-    start_time = time.time()
-    input_file = "D:\\pythonProject\\fastqtobmp\\input\\SRR554369.fastq"
-    chunk_size = 16 * 1024 * 1024  # 16 MB
-
-    chunk_index = 0
-    reads = []
-    total_size = 0
-
-    for record in SeqIO.parse(input_file, "fastq"):
-        seq = str(record.seq)
-        total_size += len(seq)
-        reads.append(seq)
-        if total_size >= chunk_size:
-            process_chunk(reads, chunk_index)
-            chunk_index += 1
-            reads = []
-            total_size = 0
-
-    # 处理剩余部分
-    if reads:
-        process_chunk(reads, chunk_index)
-
-    end_time = time.time()
-    print(f'所有块处理完成，运行时间: {end_time - start_time:.2f} 秒')
-
-if __name__ == "__main__":
-    main()
+print('所有文件处理完毕')

@@ -102,7 +102,7 @@ def process_all_fastq(input_directory, output_base_path):
             fastq_to_image_segmented(fastq_path, output_path)
 
             # 移动fastq_path到archive
-            shutil.move(fastq_path, os.path.join(input_directory, 'archive', file_name))
+            # shutil.move(fastq_path, os.path.join(input_directory, 'archive', file_name))
 
             # 打印信息作为演示
             print(f"Processing {fastq_path} into {output_path}")
