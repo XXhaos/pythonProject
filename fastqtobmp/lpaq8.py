@@ -22,7 +22,7 @@ def compress_file(input_file, output_directory, lpaq8_path, compression_level='9
     compress_lpaq8(lpaq8_path, compression_level, input_file, output_path)
 
 
-def compress_lpaq8(lpaq8_path, compression_level, input_path, output_path):
+def compress_lpaq8(lpaq8_path, input_path, output_path, compression_level='9'):
     """
     使用lpaq8压缩单个文件。
 
@@ -32,7 +32,7 @@ def compress_lpaq8(lpaq8_path, compression_level, input_path, output_path):
     - input_path: 输入文件路径。
     - output_path: 输出文件路径。
     """
-    command = [lpaq8_path, compression_level, input_path, output_path]
+    command = [lpaq8_path, input_path, output_path, compression_level]
     try:
         subprocess.run(command, check=True)
         print(f"文件 {input_path} 压缩成功，保存为 {output_path}")
@@ -59,13 +59,10 @@ def compress_all_files_in_directory(input_directory, output_directory, lpaq8_pat
 
 
 # 示例用法
-input_directory1 = r"D:\pythonProject\fastqtobmp\input\g" # 定义需要压缩的文件路径
-input_directory2 = r"D:\pythonProject\fastqtobmp\input\g_prime"  # 定义需要压缩的文件路径
-destination_directory1 = r'D:\pythonProject\fastqtobmp\input\g_lpaq8'  # 定义输出目录
-destination_directory2 = r'D:\pythonProject\fastqtobmp\input\g_prime_lpaq8'  # 定义输出目录
+input_directory1 = r"D:\pythonProject\fastqtobmp\input\compressed" # 定义需要压缩的文件路径
+destination_directory1 = r'D:\pythonProject\fastqtobmp\input\q_lpaq8'  # 定义输出目录
 lpaq8_exe_path = r"D:\pythonProject\lpaq8\lpaq8.exe"  # 确保这是正确的lpaq8路径
 
 # 压缩目录中的所有文件
 compress_all_files_in_directory(input_directory1, destination_directory1, lpaq8_exe_path)
-compress_all_files_in_directory(input_directory2, destination_directory2, lpaq8_exe_path)
 
