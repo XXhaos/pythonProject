@@ -28,7 +28,7 @@ def process_quality_chunk(quality_scores, chunk_index):
 
 def main():
     start_time = time.time()
-    input_file = "D:\\pythonProject\\fastqtobmp\\input\\SRR554369.fastq"
+    input_file = "/fastqtobmp/input/SRR554369.fastq"
     chunk_size = 16 * 1024 * 1024  # 16 MB
 
     chunk_index = 0

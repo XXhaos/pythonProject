@@ -45,5 +45,5 @@ def decompress_image(lpaq8_path, input_path, output_path):
 # 示例用法
 compressed_files_directory = 'cache/compressed_images/'
 decompressed_files_directory = 'cache/decompressed_images/'
-lpaq8_exe_path = r"D:\pythonProject\lpaq8\lpaq8.exe"  # 确保这是正确的路径
+lpaq8_exe_path = r"/lpaq8/lpaq8.exe"  # 确保这是正确的路径
 decompress_lpaq8_files(compressed_files_directory, decompressed_files_directory, lpaq8_exe_path)
