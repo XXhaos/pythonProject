@@ -18,12 +18,12 @@ os.makedirs(g_output_folder, exist_ok=True)
 os.makedirs(g_prime_output_folder, exist_ok=True)
 
 # 定义可能的元素列表
-elements = [0, 5, 12, 18, 24]
+elements = [5, 12, 18, 24]
 # 定义规则表，此处使用提供的规则表
 rule_table = []
 
 # 添加所有五个值的可能搭配到规则库
-values = [0, 5, 12, 18, 24]
+values = [5, 12, 18, 24]
 combinations = list(product(values, repeat=4))
 
 for combination in combinations:
@@ -33,7 +33,7 @@ for combination in combinations:
 rules_dict = defaultdict(int)
 
 # 按照 32， 224， 192， 64， 0 的顺序对规则表进行排序
-sort_order = [5, 12, 18, 24, 0]
+sort_order = [5, 12, 18, 24]
 rule_table.sort(key=lambda x: (sort_order.index(x[0]), sort_order.index(x[1]), sort_order.index(x[2]), sort_order.index(x[3])))
 
 # 获取以 '.tiff' 结尾的文件列表，并按照文件名中的序号排序
@@ -52,28 +52,29 @@ for tiff_file in tiff_files:
 
     # 将灰度图像转换为NumPy数组
     G = np.array(img_gray)
-    # 定义初始的灰度矩阵G'，只保留左上角4*4的灰度值，其余矩阵元素置为0
+
     G_prime = np.zeros((G.shape[0], G.shape[1]))
 
     if number == 1:
 
-        G_prime[:(G.shape[0] // 20), : (G.shape[1] // 1000)] = G[:(G.shape[0] // 20), : (G.shape[1] // 1000)]
+        # 初始化G_prime矩阵，将G矩阵的前1/20行和前1/1000列复制到G_prime矩阵中
+        G_prime[:(G.shape[0] // 1000), : (G.shape[1] // 20)] = G[:(G.shape[0] // 1000), : (G.shape[1] // 20)]
 
         for i in range(0, G.shape[0] // 20):
             for j in range(0, G.shape[1] // 1000):
                 center = G[i, j]
                 if i == 0:
-                    up = 0
+                    up = 5
                 else:
                     up = G[i - 1, j]
                 if j == 0:
-                    left = 0
+                    left = 5
                 else:
                     left = G[i, j - 1]
                 if i != 0 and j != 0:
                     left_up = G[i - 1, j - 1]
                 else:
-                    left_up = 0
+                    left_up = 5
                 matched_rule = (up, left_up, left, center)
                 rules_dict[matched_rule] += 1
         for i in range(0, G.shape[0]):
@@ -81,25 +82,24 @@ for tiff_file in tiff_files:
                 if i >= (G.shape[0] // 20) or j >= (G.shape[1] // 1000):
                     center = G[i, j]
                     if i == 0:
-                        up = 0
+                        up = 5
                     else:
                         up = G[i - 1, j]
                     if j == 0:
-                        left = 0
+                        left = 5
                     else:
                         left = G[i, j - 1]
                     if i != 0 and j != 0:
                         left_up = G[i - 1, j - 1]
                     else:
-                        left_up = 0
+                        left_up = 5
                     matched_rule = (up, left_up, left, center)
                     matched_rule1 = (up, left_up, left, 5)
                     matched_rule2 = (up, left_up, left, 12)
                     matched_rule3 = (up, left_up, left, 18)
                     matched_rule4 = (up, left_up, left, 24)
-                    matched_rule5 = (up, left_up, left, 0)
 
-                    matched_rules = [matched_rule1, matched_rule2, matched_rule3, matched_rule4, matched_rule5]
+                    matched_rules = [matched_rule1, matched_rule2, matched_rule3, matched_rule4]
                     max_freq = -1
                     top_rule = None
 
@@ -118,25 +118,24 @@ for tiff_file in tiff_files:
             for j in range(0, G.shape[1]):
                     center = G[i, j]
                     if i == 0:
-                        up = 0
+                        up = 5
                     else:
                         up = G[i - 1, j]
                     if j == 0:
-                        left = 0
+                        left = 5
                     else:
                         left = G[i, j - 1]
                     if i != 0 and j != 0:
                         left_up = G[i - 1, j - 1]
                     else:
-                        left_up = 0
+                        left_up = 5
                     matched_rule = (up, left_up, left, center)
                     matched_rule1 = (up, left_up, left, 5)
                     matched_rule2 = (up, left_up, left, 12)
                     matched_rule3 = (up, left_up, left, 18)
                     matched_rule4 = (up, left_up, left, 24)
-                    matched_rule5 = (up, left_up, left, 0)
 
-                    matched_rules = [matched_rule1, matched_rule2, matched_rule3, matched_rule4, matched_rule5]
+                    matched_rules = [matched_rule1, matched_rule2, matched_rule3, matched_rule4]
                     max_freq = -1
                     top_rule = None
 
