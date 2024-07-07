@@ -59,8 +59,8 @@ def compress_all_files_in_directory(input_directory, output_directory, lpaq8_pat
 
 
 # 示例用法
-input_directory1 = r"D:\pythonProject\fastqtobmp\input\quality_reflection" # 定义需要压缩的文件路径
-destination_directory1 = r'D:\pythonProject\fastqtobmp\input\g_lpaq8'  # 定义输出目录
+input_directory1 = r"D:\pythonProject\fastqtobmp\input\compressed\quality_reflection\q_prime" # 定义需要压缩的文件路径
+destination_directory1 = r'D:\pythonProject\fastqtobmp\input\q_prime_lpaq8'  # 定义输出目录
 lpaq8_exe_path = r"D:\pythonProject\lpaq8\lpaq8.exe"  # 确保这是正确的lpaq8路径
 
 # 压缩目录中的所有文件
