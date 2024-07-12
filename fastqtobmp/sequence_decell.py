@@ -7,15 +7,15 @@ from PIL import Image
 
 Image.MAX_IMAGE_PIXELS = None
 # 定义输入和输出文件夹路径
-input_folder = r'D:\pythonProject\change_to_gray_press\g_prime'
-output_folder = r'D:\pythonProject\decompression\de_g'
+input_folder = r'D:\pythonProject\fastqtobmp\input\111'
+output_folder = r'D:\pythonProject\fastqtobmp\input'
 
 # 定义g_prime和de_g的输出子目录
-g_output_folder = os.path.join(output_folder, 'g_prime')
+# g_output_folder = os.path.join(output_folder, 'g_prime')
 De_g_output_folder = os.path.join(output_folder, 'de_g')
 
 # 创建g_prime和de_g子目录（如果不存在）
-os.makedirs(g_output_folder, exist_ok=True)
+# os.makedirs(g_output_folder, exist_ok=True)
 os.makedirs(De_g_output_folder, exist_ok=True)
 
 # 定义可能的元素列表
@@ -95,12 +95,12 @@ for tiff_file in tiff_files:
 
     # 构建输出文件路径
     output_name = os.path.splitext(tiff_file)[0]
-    g_prime_file_path = os.path.join(g_output_folder, f'{output_name}_g.tiff')
+    # g_prime_file_path = os.path.join(g_output_folder, f'{output_name}_g.tiff')
     De_g_file_path = os.path.join(De_g_output_folder, f'{output_name}_De_g.tiff')
 
     # 将G矩阵转换为图像并保存为TIFF文件
-    g_prime_img = Image.fromarray(G_prime.astype(np.uint8))
-    g_prime_img.save(g_prime_file_path)
+    # g_prime_img = Image.fromarray(G_prime.astype(np.uint8))
+    # g_prime_img.save(g_prime_file_path)
 
     # 将G_prime矩阵转换为图像并保存为TIFF文件
     De_g_img = Image.fromarray(De_g.astype(np.uint8))

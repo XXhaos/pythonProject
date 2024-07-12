@@ -15,8 +15,8 @@ def compare_fastq_sequences(source_fastq, recovered_fastq):
     return True
 
 def main():
-    source_fastq = "D:\\pythonProject\\fastqtobmp\\input\\SRR554369.fastq"
-    recovered_fastq = "D:\\pythonProject\\fastqtobmp\\input\\output.fastq"
+    source_fastq = r"D:\pythonProject\fastqtobmp\input\SRR13679470_2.fastq"
+    recovered_fastq = r"D:\pythonProject\fastqtobmp\cache\change_to_fastq\restored_reads.fastq"
 
     result = compare_fastq_sequences(source_fastq, recovered_fastq)
     if result:

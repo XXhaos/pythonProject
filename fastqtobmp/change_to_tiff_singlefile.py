@@ -4,7 +4,7 @@ import tifffile as tiff
 import time
 import os
 
-def fastq_to_image_segmented(fastq_path, output_path, block_size=32 * 1024 * 1024):
+def fastq_to_image_segmented(fastq_path, output_path, block_size=256 * 1024 * 1024):
     """
     将 FASTQ 文件分批读取并转换为图像，每批的大小接近给定的 block_size。
 
@@ -53,8 +53,8 @@ def fastq_to_image_segmented(fastq_path, output_path, block_size=32 * 1024 * 102
             # 当达到指定的 reads_per_block 时，保存图像块
             if len(base_image_block) == reads_per_block:
                 block_count += 1
-                tiff.imwrite(f"{output_path}grayimage_base_{block_count}.tiff", np.array(base_image_block, dtype=np.uint8))
-                tiff.imwrite(f"{output_path}grayimage_quality_{block_count}.tiff", np.array(quality_image_block, dtype=np.uint8))
+                tiff.imwrite(f"{output_path}\grayimage_base_{block_count}.tiff", np.array(base_image_block, dtype=np.uint8))
+                tiff.imwrite(f"{output_path}\grayimage_quality_{block_count}.tiff", np.array(quality_image_block, dtype=np.uint8))
                 print(f"图像块 {block_count} 已保存。")
 
                 base_image_block = []
@@ -63,8 +63,8 @@ def fastq_to_image_segmented(fastq_path, output_path, block_size=32 * 1024 * 102
     # 保存最后一个图像块（如果有剩余）
     if base_image_block:
         block_count += 1
-        tiff.imwrite(f"{output_path}grayimage_base_{block_count}.tiff", np.array(base_image_block, dtype=np.uint8))
-        tiff.imwrite(f"{output_path}grayimage_quality_{block_count}.tiff", np.array(quality_image_block, dtype=np.uint8))
+        tiff.imwrite(f"{output_path}\grayimage_base_{block_count}.tiff", np.array(base_image_block, dtype=np.uint8))
+        tiff.imwrite(f"{output_path}\grayimage_quality_{block_count}.tiff", np.array(quality_image_block, dtype=np.uint8))
         print(f"最后的图像块 {block_count} 已保存。")
 
     end_time = time.time()
@@ -73,8 +73,8 @@ def fastq_to_image_segmented(fastq_path, output_path, block_size=32 * 1024 * 102
     return read_count, reads_per_block, block_count
 
 # 示例文件路径（需要替换为实际路径）
-fastq_path = "input/SRR8039513.fastq"
-output_path = "cache/SRR8039513/"
+fastq_path = r"D:\pythonProject\fastqtobmp\input\SRR554369.fastq"
+output_path = r"D:\pythonProject\fastqtobmp\input\change_to_gray"
 
 # 调用函数处理FASTQ文件
 read_count, reads_per_block, total_blocks = fastq_to_image_segmented(fastq_path, output_path)
