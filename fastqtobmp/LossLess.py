@@ -83,7 +83,7 @@ def fastq_to_g_prime(fastq_path, output_path, block_size=256 * 1024 * 1024):
         print(f"最后的图像块 {block_count} 已处理。")
 
     end_time = time.time()
-    print(f"代码执行时间: {end_time - start_time} 秒")
+    print(f"代码执行时间: {(end_time - start_time)/60} 分钟")
 
     return read_count, reads_per_block, block_count
 
@@ -148,7 +148,7 @@ def save_quality_image(G, output_path, block_count):
     quality_img.save(quality_file_path)
 
 # 示例文件路径（需要替换为实际路径）
-fastq_path = r"D:\pythonProject\fastqtobmp\input\SRR554369.fastq"
+fastq_path = r"D:\pythonProject\fastqtobmp\input\SRR28278723.fastq"
 output_path = r"D:\pythonProject\fastqtobmp\input\compressed"
 
 # 调用函数处理FASTQ文件

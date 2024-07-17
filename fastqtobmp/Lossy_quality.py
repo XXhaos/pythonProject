@@ -43,7 +43,7 @@ def process_chunk(records, chunk_index, output_folder):
 
 
 def main():
-    input_file = r"D:\pythonProject\fastqtobmp\input\SRR554369.fastq"
+    input_file = r"D:\pythonProject\fastqtobmp\input\SRR13679454_2.fastq"
     output_folder = r"D:\pythonProject\fastqtobmp\input\compressed"
     chunk_size = 16 * 1024 * 1024  # 16 MB
     os.makedirs(output_folder, exist_ok=True)

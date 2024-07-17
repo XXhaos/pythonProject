@@ -27,5 +27,5 @@ def check_directory_for_fastq(dir_path):
 
 
 # 替换为你的FASTQ文件所在的目录路径
-directory_path = r"E:\迅雷下载\测试集"
+directory_path = r"E:\迅雷下载\测试集2"
 check_directory_for_fastq(directory_path)
