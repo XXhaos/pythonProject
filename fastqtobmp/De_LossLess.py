@@ -26,9 +26,8 @@ def reconstruct_id(tokens, regex):
         reconstructed_ids.append(id_str)
     return reconstructed_ids
 
-def reconstruct_g_from_g_prime(g_prime_array):
+def reconstruct_g_from_g_prime(g_prime_array, rules_dict):
     De_g = np.zeros_like(g_prime_array)
-    rules_dict = defaultdict(int)
 
     for i in range(g_prime_array.shape[0]):
         for j in range(g_prime_array.shape[1]):
@@ -67,13 +66,13 @@ def reconstruct_g_from_g_prime(g_prime_array):
 
     return De_g
 
-def reconstruct_base_quality(base_files, quality_files):
+def reconstruct_base_quality(base_files, quality_files, rules_dict):
     bases = []
     qualities = []
     for base_path, quality_path in zip(base_files, quality_files):
         base_img = Image.open(base_path)
         g_prime_array = np.array(base_img)
-        bases_array = reconstruct_g_from_g_prime(g_prime_array)
+        bases_array = reconstruct_g_from_g_prime(g_prime_array, rules_dict)
 
         quality_img = Image.open(quality_path)
         quality_array = np.array(quality_img)
@@ -93,7 +92,8 @@ def reconstruct_fastq(id_token_files, id_regex_files, base_files, quality_files,
         tokens, regex = load_id_block(id_tokens_path, id_regex_path)
         ids.extend(reconstruct_id(tokens, regex))
 
-    bases, qualities = reconstruct_base_quality(base_files, quality_files)
+    rules_dict = defaultdict(int)
+    bases, qualities = reconstruct_base_quality(base_files, quality_files, rules_dict)
 
     records = []
     for i in range(len(ids)):
