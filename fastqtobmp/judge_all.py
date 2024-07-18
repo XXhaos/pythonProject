@@ -6,6 +6,9 @@ def compare_fastq_files(file1_path, file2_path):
     files_are_identical = True
     file1_length = 0
     file2_length = 0
+    diff_ids = []
+    diff_bases = []
+    diff_qualities = []
 
     # 使用 with open 结构并行读取两个 FASTQ 文件
     with open(file1_path, 'r') as file1, open(file2_path, 'r') as file2:
@@ -17,23 +20,17 @@ def compare_fastq_files(file1_path, file2_path):
             file2_length += 1
 
             if record1.description != record2.description:
-                print(f"差异在行 {file1_length * 4 - 3}:")
-                print(f"文件1 ID: {record1.description}")
-                print(f"文件2 ID: {record2.description}")
+                diff_ids.append(file1_length * 4 - 3)
                 files_are_identical = False
                 diff_count += 1
 
             if record1.seq != record2.seq:
-                print(f"差异在行 {file1_length * 4 - 2}:")
-                print(f"文件1序列: {record1.seq}")
-                print(f"文件2序列: {record2.seq}")
+                diff_bases.append(file1_length * 4 - 2)
                 files_are_identical = False
                 diff_count += 1
 
             if record1.letter_annotations["phred_quality"] != record2.letter_annotations["phred_quality"]:
-                print(f"差异在行 {file1_length * 4}:")
-                print(f"文件1质量: {record1.letter_annotations['phred_quality']}")
-                print(f"文件2质量: {record2.letter_annotations['phred_quality']}\n")
+                diff_qualities.append(file1_length * 4)
                 files_are_identical = False
                 diff_count += 1
 
@@ -60,9 +57,14 @@ def compare_fastq_files(file1_path, file2_path):
     else:
         print(f"文件长度相同，共找到 {diff_count} 处差异")
 
+    return diff_ids, diff_bases, diff_qualities
+
 # 示例文件路径（需要替换为实际路径）
 file1_path = r"D:\pythonProject\fastqtobmp\input\SRR13679454_1.fastq" # 原始FASTQ文件路径
 file2_path = r"D:\pythonProject\fastqtobmp\input\reconstructed.fastq"  # 恢复后的FASTQ文件路径
 
 # 调用函数比较两个 FASTQ 文件
-compare_fastq_files(file1_path, file2_path)
+diff_ids, diff_bases, diff_qualities = compare_fastq_files(file1_path, file2_path)
+print("有差异的ID行号: ", diff_ids)
+print("有差异的碱基行号: ", diff_bases)
+print("有差异的质量分数行号: ", diff_qualities)
