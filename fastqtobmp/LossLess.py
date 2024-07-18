@@ -5,6 +5,25 @@ from itertools import product
 from PIL import Image
 from Bio import SeqIO
 import time
+import re
+
+def find_delimiters(identifier):
+    delimiters = re.findall(r'[.:_\s=/-]', identifier)
+    return delimiters
+
+def split_identifier(identifier, delimiters):
+    tokens = re.split(r'[.:_\s=/-]', identifier)
+    return tokens
+
+def generate_regex(delimiters):
+    regex = ""
+    count = 1
+    for delimiter in delimiters:
+        regex += f"T{count}"
+        regex += delimiter
+        count += 1
+    regex += f"T{count}"
+    return regex
 
 def fastq_to_g_prime(fastq_path, output_path, block_size=256 * 1024 * 1024):
     """
@@ -36,6 +55,7 @@ def fastq_to_g_prime(fastq_path, output_path, block_size=256 * 1024 * 1024):
 
     read_count = 0
     block_count = 0
+    id_block = []
     base_image_block = []
     quality_image_block = []
 
@@ -57,6 +77,12 @@ def fastq_to_g_prime(fastq_path, output_path, block_size=256 * 1024 * 1024):
     # 使用 SeqIO.parse() 函数逐条读取 FASTQ 文件
     with open(fastq_path, 'r') as file:
         for record in SeqIO.parse(file, "fastq"):
+            id_str = record.description
+            delimiters = find_delimiters(id_str)
+            tokens = split_identifier(id_str, delimiters)
+            regex = generate_regex(delimiters)
+            id_block.append((tokens, regex))
+
             base_gray_values = [base_to_gray.get(base, 0) for base in record.seq]
             base_image_block.append(base_gray_values)
 
@@ -70,8 +96,10 @@ def fastq_to_g_prime(fastq_path, output_path, block_size=256 * 1024 * 1024):
                 block_count += 1
                 process_block(np.array(base_image_block, dtype=np.uint8), output_path, block_count, rules_dict)
                 save_quality_image(np.array(quality_image_block, dtype=np.uint8), output_path, block_count)
+                save_id_block(id_block, output_path, block_count)
                 print(f"图像块 {block_count} 已处理。")
 
+                id_block = []
                 base_image_block = []
                 quality_image_block = []
 
@@ -80,6 +108,7 @@ def fastq_to_g_prime(fastq_path, output_path, block_size=256 * 1024 * 1024):
         block_count += 1
         process_block(np.array(base_image_block, dtype=np.uint8), output_path, block_count, rules_dict)
         save_quality_image(np.array(quality_image_block, dtype=np.uint8), output_path, block_count)
+        save_id_block(id_block, output_path, block_count)
         print(f"最后的图像块 {block_count} 已处理。")
 
     end_time = time.time()
@@ -147,8 +176,17 @@ def save_quality_image(G, output_path, block_count):
     quality_img = Image.fromarray(G.astype(np.uint8))
     quality_img.save(quality_file_path)
 
+def save_id_block(id_block, output_path, block_count):
+    tokens_file_path = os.path.join(output_path, f"chunk_{block_count}_id_tokens.txt")
+    regex_file_path = os.path.join(output_path, f"chunk_{block_count}_id_regex.txt")
+
+    with open(tokens_file_path, 'w') as tokens_file, open(regex_file_path, 'w') as regex_file:
+        for tokens, regex in id_block:
+            tokens_file.write(' '.join(tokens) + '\n')
+            regex_file.write(regex + '\n')
+
 # 示例文件路径（需要替换为实际路径）
-fastq_path = r"D:\pythonProject\fastqtobmp\input\SRR28278723.fastq"
+fastq_path = r"D:\pythonProject\fastqtobmp\input\SRR13679454_1.fastq"
 output_path = r"D:\pythonProject\fastqtobmp\input\compressed"
 
 # 调用函数处理FASTQ文件

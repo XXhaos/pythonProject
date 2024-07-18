@@ -73,7 +73,7 @@ def fastq_to_image_segmented(fastq_path, output_path, block_size=256 * 1024 * 10
     return read_count, reads_per_block, block_count
 
 # 示例文件路径（需要替换为实际路径）
-fastq_path = r"D:\pythonProject\fastqtobmp\input\SRR28278723.fastq"
+fastq_path = r"D:\pythonProject\fastqtobmp\input\SRR28278722.fastq"
 output_path = r"D:\pythonProject\fastqtobmp\input\change_to_gray"
 
 # 调用函数处理FASTQ文件
