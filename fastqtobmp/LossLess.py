@@ -186,7 +186,7 @@ def save_id_block(id_block, output_path, block_count):
             regex_file.write(regex + '\n')
 
 # 示例文件路径（需要替换为实际路径）
-fastq_path = r"D:\pythonProject\fastqtobmp\input\SRR13679454_1.fastq"
+fastq_path = r"D:\pythonProject\fastqtobmp\input\SRR3239614_1.fastq"
 output_path = r"D:\pythonProject\fastqtobmp\input\compressed"
 
 # 调用函数处理FASTQ文件
