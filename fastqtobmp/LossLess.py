@@ -1,4 +1,6 @@
 import os
+import shutil
+
 import numpy as np
 from collections import defaultdict
 from itertools import product
@@ -6,14 +8,19 @@ from PIL import Image
 from Bio import SeqIO
 import time
 import re
+from lpaq8 import compress_all_files_in_directory, decompress_all_files_in_directory
+from tools import check_output_path, get_file_size, get_directory_size
+
 
 def find_delimiters(identifier):
     delimiters = re.findall(r'[.:_\s=/-]', identifier)
     return delimiters
 
+
 def split_identifier(identifier, delimiters):
     tokens = re.split(r'[.:_\s=/-]', identifier)
     return tokens
+
 
 def generate_regex(delimiters):
     regex = ""
@@ -24,6 +31,7 @@ def generate_regex(delimiters):
         count += 1
     regex += f"T{count}"
     return regex
+
 
 def fastq_to_g_prime(fastq_path, output_path, block_size=256 * 1024 * 1024):
     """
@@ -112,9 +120,10 @@ def fastq_to_g_prime(fastq_path, output_path, block_size=256 * 1024 * 1024):
         print(f"最后的图像块 {block_count} 已处理。")
 
     end_time = time.time()
-    print(f"代码执行时间: {(end_time - start_time)/60} 分钟")
+    print(f"代码执行时间: {(end_time - start_time) / 60} 分钟")
 
     return read_count, reads_per_block, block_count
+
 
 def process_block(G, output_path, block_count, rules_dict):
     # 初始化G_prime为与G相同大小的零矩阵
@@ -158,7 +167,6 @@ def process_block(G, output_path, block_count, rules_dict):
             # 更新规则字典中该规则的频率
             rules_dict[matched_rule] += 1
 
-
     # 构建输出文件路径
     output_name = f"chunk_{block_count}_base"
     g_prime_file_path = os.path.join(output_path, f'{output_name}_g_prime.tiff')
@@ -166,6 +174,7 @@ def process_block(G, output_path, block_count, rules_dict):
     # 将G_prime矩阵转换为图像并保存为TIFF文件
     g_prime_img = Image.fromarray(G_prime.astype(np.uint8))
     g_prime_img.save(g_prime_file_path)
+
 
 def save_quality_image(G, output_path, block_count):
     # 构建输出文件路径
@@ -176,6 +185,7 @@ def save_quality_image(G, output_path, block_count):
     quality_img = Image.fromarray(G.astype(np.uint8))
     quality_img.save(quality_file_path)
 
+
 def save_id_block(id_block, output_path, block_count):
     tokens_file_path = os.path.join(output_path, f"chunk_{block_count}_id_tokens.txt")
     regex_file_path = os.path.join(output_path, f"chunk_{block_count}_id_regex.txt")
@@ -185,12 +195,282 @@ def save_id_block(id_block, output_path, block_count):
             tokens_file.write(' '.join(tokens) + '\n')
             regex_file.write(regex + '\n')
 
-# 示例文件路径（需要替换为实际路径）
-fastq_path = r"D:\pythonProject\fastqtobmp\input\SRR3239614_1.fastq"
-output_path = r"D:\pythonProject\fastqtobmp\input\compressed"
 
-# 调用函数处理FASTQ文件
-read_count, reads_per_block, total_blocks = fastq_to_g_prime(fastq_path, output_path)
+def combine(input_path, output_path):
+    with open(output_path, "w+b") as output_file:
 
-# 打印处理的reads数量、每块reads数量和图像块数量
-print(f"处理的reads数量: {read_count}，每个图像块的reads数量: {reads_per_block}，一共有: {total_blocks}个图像块。")
+        # 按顺序进行写入
+        files = sorted(os.listdir(input_path))
+
+        # 将所有id_regex写入
+        for file in files:
+            if file.endswith("id_regex.lpaq8"):
+                with open(os.path.join(input_path, file), "rb") as input_file:
+                    output_file.write(b"%id_regex%")
+                    output_file.write(input_file.read())
+
+        # 将所有id_tokens写入
+        for file in files:
+            if file.endswith("id_tokens.lpaq8"):
+                with open(os.path.join(input_path, file), "rb") as input_file:
+                    output_file.write(b"%id_tokens%")
+                    output_file.write(input_file.read())
+
+        # 将所有base_g_prime写入
+        for file in files:
+            if file.endswith("base_g_prime.lpaq8"):
+                with open(os.path.join(input_path, file), "rb") as input_file:
+                    output_file.write(b"%base_g_prime%")
+                    output_file.write(input_file.read())
+
+        # 将所有quality写入
+        for file in files:
+            if file.endswith("quality.lpaq8"):
+                with open(os.path.join(input_path, file), "rb") as input_file:
+                    output_file.write(b"%quality%")
+                    output_file.write(input_file.read())
+
+        output_file.write(b"%eof%")
+
+
+def decombine(input_path, output_path):
+    with open(input_path, "rb") as input_file:
+
+        # 确保输出文件夹存在
+        if not os.path.exists(output_path):
+            os.makedirs(output_path)
+
+        content = input_file.read()
+
+        start = 0
+        end = 0
+
+        # 拆分出id_regex
+        seperator = b"%id_regex%"
+        counter = 1
+        while True:
+            start = content.find(seperator, end)
+            if start == -1:
+                break
+
+            end = content.find(seperator, start + len(seperator))
+            if end == -1:
+                break
+
+            data = content[start + len(seperator): end]
+
+            output_name = os.path.join(output_path, f"chunk_{counter}_id_regex.lpaq8")
+
+            with open(output_name, "w+b") as output_file:
+                output_file.write(data)
+                counter += 1
+
+        # 对最后一个id_regex作处理
+        next_seperator = b"%id_tokens%"
+        end = content.find(next_seperator, start + len(next_seperator))
+        data = content[start + len(seperator): end]
+
+        output_name = os.path.join(output_path, f"chunk_{counter}_id_regex.lpaq8")
+
+        with open(output_name, "w+b") as output_file:
+            output_file.write(data)
+
+        # 拆分出id_tokens
+        seperator = b"%id_tokens%"
+        counter = 1
+        while True:
+            start = content.find(seperator, end)
+            if start == -1:
+                break
+
+            end = content.find(seperator, start + len(seperator))
+            if end == -1:
+                break
+
+            data = content[start + len(seperator): end]
+
+            output_name = os.path.join(output_path, f"chunk_{counter}_id_tokens.lpaq8")
+
+            with open(output_name, "w+b") as output_file:
+                output_file.write(data)
+                counter += 1
+
+        # 对最后一个id_tokens作处理
+        next_seperator = b"%base_g_prime%"
+        end = content.find(next_seperator, start + len(next_seperator))
+        data = content[start + len(seperator): end]
+
+        output_name = os.path.join(output_path, f"chunk_{counter}_id_tokens.lpaq8")
+
+        with open(output_name, "w+b") as output_file:
+            output_file.write(data)
+
+        # 拆分出base_g_prime
+        seperator = b"%base_g_prime%"
+        counter = 1
+        while True:
+            start = content.find(seperator, end)
+            if start == -1:
+                break
+
+            end = content.find(seperator, start + len(seperator))
+            if end == -1:
+                break
+
+            data = content[start + len(seperator): end]
+
+            output_name = os.path.join(output_path, f"chunk_{counter}_base_g_prime.lpaq8")
+
+            with open(output_name, "w+b") as output_file:
+                output_file.write(data)
+                counter += 1
+
+        # 对最后一个base_g_prime作处理
+        next_seperator = b"%quality%"
+        end = content.find(next_seperator, start + len(next_seperator))
+        data = content[start + len(seperator): end]
+
+        output_name = os.path.join(output_path, f"chunk_{counter}_base_g_prime.lpaq8")
+
+        with open(output_name, "w+b") as output_file:
+            output_file.write(data)
+
+        # 将所有quality写入
+        seperator = b"%quality%"
+        counter = 1
+        while True:
+            start = content.find(seperator, end)
+            if start == -1:
+                break
+
+            end = content.find(seperator, start + len(seperator))
+            if end == -1:
+                break
+
+            data = content[start + len(seperator): end]
+
+            output_name = os.path.join(output_path, f"chunk_{counter}_quality.lpaq8")
+
+            with open(output_name, "w+b") as output_file:
+                output_file.write(data)
+                counter += 1
+
+        # 对最后一个id_tokens作处理
+        next_seperator = b"%eof%"
+        end = content.find(next_seperator, start + len(next_seperator))
+        data = content[start + len(seperator): end]
+
+        output_name = os.path.join(output_path, f"chunk_{counter}_quality.lpaq8")
+
+        with open(output_name, "w+b") as output_file:
+            output_file.write(data)
+
+
+def first_compress(fastq_path, first_compressed_path):
+    read_count, reads_per_block, total_blocks = fastq_to_g_prime(fastq_path, first_compressed_path)
+    print(f"处理的reads数量: {read_count}，每个图像块的reads数量: {reads_per_block}，一共有: {total_blocks}个图像块。")
+    print(f"前端压缩完成，压缩前文件大小：{get_file_size(fastq_path)}")
+    return read_count, reads_per_block, total_blocks
+
+
+def first_decompress(fastq_path, first_compressed_path):
+    print()
+
+
+def second_compress(first_compressed_path, second_compressed_path, lpaq8_path):
+    compress_all_files_in_directory(first_compressed_path, second_compressed_path, lpaq8_path)
+    print("后端压缩完成")
+
+
+def second_decompress(first_compressed_path, second_compressed_path, lpaq8_path):
+    decompress_all_files_in_directory(first_compressed_path, second_compressed_path, lpaq8_path)
+    print("后端解压完成")
+
+
+def final_compress(second_compressed_path, final_compressed_path):
+    combine(second_compressed_path, final_compressed_path)
+    # file_size = get_file_size(final_compressed_path)
+    print(f"打包完成，压缩后文件大小：{get_file_size(final_compressed_path)}")
+
+
+def final_decompress(final_compressed_path, second_compressed_path):
+    print(f"开始拆包，拆包前文件大小：{get_file_size(final_compressed_path)}")
+    decombine(final_compressed_path, second_compressed_path)
+    # file_size = get_file_size(final_compressed_path)
+    print(f"拆包完成")
+
+
+def post_process_after_compression(first_compressed_path, second_compressed_path):
+    try:
+        shutil.rmtree(first_compressed_path)
+        print(f"Folder '{first_compressed_path}' has been deleted.")
+        shutil.rmtree(second_compressed_path)
+        print(f"Folder '{second_compressed_path}' has been deleted.")
+    except OSError as e:
+        print(f"Error: {e.strerror}")
+
+
+def compress(fastq_path, output_path, lpaq8_path, remove_intermediate_products):
+    # 拼好三次压缩的路径
+    first_compressed_path = os.path.join(output_path, "first_compressed")
+    second_compressed_path = os.path.join(output_path, "second_compressed")
+    final_compressed_path = os.path.join(output_path, os.path.splitext(os.path.basename(fastq_path))[0])
+
+    # 第一步处理：调用函数处理FASTQ文件，并打印处理的reads数量、每块reads数量和图像块数量
+    first_compress(fastq_path, first_compressed_path)
+
+    # 第二步处理：将处理后的文件进行后端压缩
+    second_compress(first_compressed_path, second_compressed_path, lpaq8_path)
+
+    # 最后一步处理：将完成后端压缩的文件打包为一个文件
+    final_compress(second_compressed_path, final_compressed_path)
+
+    if remove_intermediate_products:
+        post_process_after_compression(first_compressed_path, second_compressed_path)
+
+
+def decompress(compressed_path, output_path, lpaq8_path, remove_intermediate_products):
+    first_decompressed_path = os.path.join(output_path, "first_compressed")
+    second_decompressed_path = os.path.join(output_path, "second_compressed")
+    final_decompressed_path = compressed_path
+
+    # 最后一步处理：将打包文件拆开
+    final_decompress(final_decompressed_path, second_decompressed_path)
+
+    # 第二步处理：将处理后的文件进行后端解压
+    second_decompress(second_decompressed_path, first_decompressed_path, lpaq8_path)
+
+    # 第一步处理：将解压后的文件组合成fastq文件
+    # TODO 将解压后的文件组合成fastq文件
+    # first_decompress(fastq_path, first_compressed_path)
+
+
+def main(type, fastq_path, output_path, lpaq8_path, compressed_path, remove_intermediate_products):
+    # if output_path is None:
+    #     output_path = os.path.dirname(fastq_path)
+    # check = check_output_path(output_path)
+    # if not check:
+    #     print("指定的输出路径必须是一个目录！")
+    #     exit()
+
+    if type == "compress" or type == "c":
+        print(f"开始进行压缩程序，压缩文件名：{fastq_path}")
+        compress(fastq_path, output_path, lpaq8_path, remove_intermediate_products)
+    elif type == "decompress" or type == "d":
+        print(f"开始进行解压程序，压缩文件名：{fastq_path}")
+        decompress(compressed_path, output_path, lpaq8_path, remove_intermediate_products)
+    else:
+        print("指定类型错误")
+
+
+if __name__ == '__main__':
+    fastq_path = f"{os.getcwd()}\input\SRR554369.fastq"
+    output_path = f"{os.getcwd()}\output"
+    # output_path = None
+    lpaq8_path = f"{os.getcwd()}\lpaq8.exe"
+    # lpaq8_path = None
+    compressed_path = f"{os.getcwd()}\output\SRR554369"
+
+    # remove_intermediate_products = True 时，删去中间产物
+    # main("compress", fastq_path, output_path, lpaq8_path, compressed_path, True)
+    main("decompress", fastq_path, output_path, lpaq8_path, compressed_path, True)
