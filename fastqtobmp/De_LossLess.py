@@ -106,7 +106,7 @@ def reconstruct_fastq(id_token_files, id_regex_files, base_files, quality_files,
         SeqIO.write(records, output_handle, "fastq")
 
 # 示例文件路径（需要替换为实际路径）
-output_path = r"D:\pythonProject\fastqtobmp\input\compressed"
+output_path = r"D:\pythonProject\fastqtobmp\output\first_compressed"
 id_token_files = sorted(
     glob.glob(f"{output_path}/chunk_*_id_tokens.txt"),
     key=lambda x: int(re.search(r'chunk_(\d+)_id_tokens.txt', x).group(1))
