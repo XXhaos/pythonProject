@@ -22,6 +22,25 @@ def compress_lpaq8(lpaq8_path, input_path, output_path, compression_level='9'):
     except Exception as e:
         print(f"发生未知错误: {str(e)}")
 
+def compress_lpaq8_test(lpaq8_path, input_stream, output_path, compression_level='9'):
+    """
+    使用lpaq8压缩单个文件。
+
+    参数:
+    - lpaq8_path: lpaq8的路径。
+    - compression_level: 压缩级别。
+    - input_path: 输入文件路径。
+    - output_path: 输出文件路径。
+    """
+    command = [lpaq8_path, compression_level, input_stream, output_path]
+    try:
+        subprocess.run(command, check=True)
+        print(f"文件 {input_stream} 压缩成功，保存为 {output_path}")
+    except subprocess.CalledProcessError as e:
+        print(f"压缩过程中出错: {e}")
+    except Exception as e:
+        print(f"发生未知错误: {str(e)}")
+
 
 def decompress_lpaq8(lpaq8_path, input_path, output_path):
     """
@@ -179,21 +198,27 @@ def get_directory_size(directory_path):
 if __name__ == '__main__':
     print()
     # 示例用法
-    # input_directory1 = r"D:\pythonProject\fastqtobmp\input\change_to_gray" # 定义需要压缩的文件路径
-    # destination_directory1 = r'D:\pythonProject\fastqtobmp\input\change_to_gray_lpaq8'  # 定义输出目录
-    # lpaq8_exe_path = r"D:\pythonProject\lpaq8\lpaq8.exe"  # 确保这是正确的lpaq8路径
-    #
+    input_directory1 = r"D:\pythonProject\fastqtobmp\input\change_to_gray" # 定义需要压缩的文件路径
+    destination_directory1 = r'D:\pythonProject\fastqtobmp\input\change_to_gray_lpaq8'  # 定义输出目录
+    lpaq8_exe_path = f"{os.getcwd()}\lpaq8.exe"  # 确保这是正确的lpaq8路径
+
+
+    input_destination = r"D:\pythonProject\fastqtobmp\input"
+    output_destination = r"D:\pythonProject\fastqtobmp\output"
+
+    compress_lpaq8_test(input_destination, output_destination, lpaq8_exe_path)
+
     # input_directory2 = r"D:\pythonProject\fastqtobmp\input\compressed" # 定义需要压缩的文件路径
     # destination_directory2 = r'D:\pythonProject\fastqtobmp\input\compressed_lpaq8'  # 定义输出目录
-    #
-    # # 压缩目录中的所有文件
-    # compress_all_files_in_directory(input_directory1, destination_directory1, lpaq8_exe_path)
+
+    # 压缩目录中的所有文件
+    compress_all_files_in_directory(input_directory1, destination_directory1, lpaq8_exe_path)
     # compress_all_files_in_directory(input_directory2, destination_directory2, lpaq8_exe_path)
-    #
-    # # 计算输出目录的大小，并转换为MB
-    # size1 = get_directory_size(destination_directory1)
+
+    # 计算输出目录的大小，并转换为MB
+    size1 = get_directory_size(destination_directory1)
     # size2 = get_directory_size(destination_directory2)
-    #
-    # # 输出两个目录大小的比较结果
+
+    # 输出两个目录大小的比较结果
     # difference = size1 - size2
     # print(f"{destination_directory1} 比 {destination_directory2} 大了 {difference:.2f} MB。")

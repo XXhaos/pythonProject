@@ -201,36 +201,72 @@ def save_id_block(id_block, output_path, block_count):
 def combine(input_path, output_path):
     with open(output_path, "w+b") as output_file:
 
+        # 获取文件块的最大id
+        pattern = re.compile(r"^chunk_(\d+)_base_g_prime.lpaq8$")
+        max_batch_id = -1
+
+        if len(os.listdir(input_path)) <= 0:
+            print("错误：输入的路径不存在文件")
+            exit(1)
+
+        if len(os.listdir(input_path)) % 4 != 0:
+            print("错误：文件缺失")
+            exit(1)
+
+        for file in os.listdir(input_path):
+            matches = pattern.findall(file)
+            if matches is not None and len(matches) > 0:
+                file_id_str = matches[0]
+
+                if not file_id_str.isdigit():
+                    print("错误：id类型不是整数")
+                    exit(1)
+
+                batch_id = int(file_id_str)
+
+                if batch_id > max_batch_id:
+                    max_batch_id = batch_id
+
+        if max_batch_id == -1:
+            print("错误：id不能小于0")
+            exit(1)
+
+        if len(os.listdir(input_path)) / 4 != max_batch_id:
+            print("错误：文件缺失")
+            exit(1)
+
         # 按顺序进行写入
-        files = sorted(os.listdir(input_path))
-
         # 将所有id_regex写入
-        for file in files:
-            if file.endswith("id_regex.lpaq8"):
-                with open(os.path.join(input_path, file), "rb") as input_file:
-                    output_file.write(b"%id_regex%")
-                    output_file.write(input_file.read())
+        for batch_id in range(1, max_batch_id + 1):
+            id_regex = f"chunk_{batch_id}_id_regex.lpaq8"
 
-        # 将所有id_tokens写入
-        for file in files:
-            if file.endswith("id_tokens.lpaq8"):
-                with open(os.path.join(input_path, file), "rb") as input_file:
-                    output_file.write(b"%id_tokens%")
-                    output_file.write(input_file.read())
+            with open(os.path.join(input_path, id_regex), "rb") as input_file:
+                output_file.write(b"%id_regex%")
+                output_file.write(input_file.read())
+
+        # 将所有id_token写入
+        for batch_id in range(1, max_batch_id + 1):
+            id_token = f"chunk_{batch_id}_id_tokens.lpaq8"
+
+            with open(os.path.join(input_path, id_token), "rb") as input_file:
+                output_file.write(b"%id_tokens%")
+                output_file.write(input_file.read())
 
         # 将所有base_g_prime写入
-        for file in files:
-            if file.endswith("base_g_prime.lpaq8"):
-                with open(os.path.join(input_path, file), "rb") as input_file:
-                    output_file.write(b"%base_g_prime%")
-                    output_file.write(input_file.read())
+        for batch_id in range(1, max_batch_id + 1):
+            base_g_prime = f"chunk_{batch_id}_base_g_prime.lpaq8"
+
+            with open(os.path.join(input_path, base_g_prime), "rb") as input_file:
+                output_file.write(b"%base_g_prime%")
+                output_file.write(input_file.read())
 
         # 将所有quality写入
-        for file in files:
-            if file.endswith("quality.lpaq8"):
-                with open(os.path.join(input_path, file), "rb") as input_file:
-                    output_file.write(b"%quality%")
-                    output_file.write(input_file.read())
+        for batch_id in range(1, max_batch_id + 1):
+            quality = f"chunk_{batch_id}_quality.lpaq8"
+
+            with open(os.path.join(input_path, quality), "rb") as input_file:
+                output_file.write(b"%quality%")
+                output_file.write(input_file.read())
 
         output_file.write(b"%eof%")
 
@@ -277,7 +313,7 @@ def decombine(input_path, output_path):
         with open(output_name, "w+b") as output_file:
             output_file.write(data)
 
-        # 拆分出id_tokens
+        # 拆分出id_token
         seperator = b"%id_tokens%"
         counter = 1
         while True:
@@ -454,16 +490,15 @@ def decompress(compressed_path, output_path, lpaq8_path, remove_intermediate_pro
     second_decompressed_path = os.path.join(output_path, "second_compressed")
     final_decompressed_path = compressed_path
 
-    # 最后一步处理：将打包文件拆开
+    # 最后一步压缩的逆操作：将打包文件拆开
     final_decompress(final_decompressed_path, second_decompressed_path)
 
-    # 第二步处理：将处理后的文件进行后端解压
+    # 第二步压缩的逆操作：将处理后的文件进行后端解压
     second_decompress(second_decompressed_path, first_decompressed_path, lpaq8_path)
 
-    # 第一步处理：将解压后的文件组合成fastq文件
+    # 第一步压缩的逆操作：将解压后的文件组合成fastq文件
     # TODO 将解压后的文件组合成fastq文件
-    first_compressed_path = first_decompressed_path
-    first_decompress(fastq_path, first_compressed_path)
+    first_decompress(fastq_path, first_decompressed_path)
 
 # 定义碱基从灰度值的映射
 gray_to_base = {32: 'A', 64: 'T', 192: 'G', 224: 'C', 0: 'N'}
@@ -563,7 +598,7 @@ def reconstruct_fastq(id_token_files, id_regex_files, base_files, quality_files,
         SeqIO.write(records, output_handle, "fastq")
 
 
-def main(type, fastq_path, output_path, lpaq8_path, compressed_path, remove_intermediate_products):
+def main(type, input_path, output_path, lpaq8_path, remove_intermediate_products):
     # if output_path is None:
     #     output_path = os.path.dirname(fastq_path)
     # check = check_output_path(output_path)
@@ -573,22 +608,22 @@ def main(type, fastq_path, output_path, lpaq8_path, compressed_path, remove_inte
 
     if type == "compress" or type == "c":
         print(f"开始进行压缩程序，压缩文件名：{fastq_path}")
-        compress(fastq_path, output_path, lpaq8_path, remove_intermediate_products)
+        compress(input_path, output_path, lpaq8_path, remove_intermediate_products)
     elif type == "decompress" or type == "d":
         print(f"开始进行解压程序，压缩文件名：{fastq_path}")
-        decompress(compressed_path, output_path, lpaq8_path, remove_intermediate_products)
+        decompress(input_path, output_path, lpaq8_path, remove_intermediate_products)
     else:
         print("指定类型错误")
 
 
 if __name__ == '__main__':
-    fastq_path = f"{os.getcwd()}\input\SRR18498736.fastq"
+    fastq_path = f"{os.getcwd()}\input\SRR6819330.fastq"
     output_path = f"{os.getcwd()}\output"
     # output_path = None
     lpaq8_path = f"{os.getcwd()}\lpaq8.exe"
     # lpaq8_path = None
-    compressed_path = f"{os.getcwd()}\output\SRR18498736"
+    compressed_path = f"{os.getcwd()}\output\SRR6819330"
 
     # remove_intermediate_products = True 时，删去中间产物
-    # main("compress", fastq_path, output_path, lpaq8_path, compressed_path, True)
-    main("decompress", fastq_path, output_path, lpaq8_path, compressed_path, True)
+    main("compress", fastq_path, output_path, lpaq8_path, False)
+    # main("decompress", compressed_path, output_path, lpaq8_path, False)

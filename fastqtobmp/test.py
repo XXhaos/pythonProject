@@ -1,5 +1,6 @@
 import hashlib
 import os
+import re
 import sys
 
 # 定义当前文件总长度
@@ -60,14 +61,24 @@ def test(destination1, destination2):
                     print("md5_hash1", md5_hash1)
                     print("md5_hash2", md5_hash2)
 
+def pattern_match():
+    text = 'chunk_11_base_g_prime.lpaq8'
+    pattern = re.compile(r"^chunk_(\d+)_base_g_prime.lpaq8$")
+
+    # 在示例字符串中查找匹配
+    matches = pattern.findall(text)
+
+    # 输出匹配到的内容
+    for match in matches:
+        print("Found:", match)
+
 
 if __name__ == '__main__':
-    # my_string = "Hello, 你好!"
-    # my_bytes = my_string.encode('utf-8')
-    # print("my_bytes", my_bytes)
-    # my_string = my_bytes.decode('utf-8')
-    # print("my_string", my_string)
-    destination1 = os.path.join(os.getcwd(), "cache", "first_compressed")
-    destination2 = os.path.join(os.getcwd(), "output", "first_compressed")
+
+    destination1 = os.path.join(os.getcwd(), "cache", "second_compressed")
+    destination2 = os.path.join(os.getcwd(), "output", "second_compressed")
 
     test(destination1, destination2)
+
+
+
