@@ -66,44 +66,32 @@ def reconstruct_g_from_g_prime(g_prime_array, rules_dict):
 
     return De_g
 
-def reconstruct_base_quality(base_files, quality_files, rules_dict):
-    bases = []
-    qualities = []
-    for base_path, quality_path in zip(base_files, quality_files):
-        base_img = Image.open(base_path)
-        g_prime_array = np.array(base_img)
-        bases_array = reconstruct_g_from_g_prime(g_prime_array, rules_dict)
+def reconstruct_base_quality_and_write(base_file, quality_file, id_block, regex_block, rules_dict, output_handle):
+    base_img = Image.open(base_file)
+    g_prime_array = np.array(base_img)
+    bases_array = reconstruct_g_from_g_prime(g_prime_array, rules_dict)
 
-        quality_img = Image.open(quality_path)
-        quality_array = np.array(quality_img)
+    quality_img = Image.open(quality_file)
+    quality_array = np.array(quality_img)
 
-        for i in range(bases_array.shape[0]):
-            base_str = ''.join([gray_to_base[pixel] for pixel in bases_array[i]])
-            quality_scores = [q // 2 for q in quality_array[i]]
+    reconstructed_ids = reconstruct_id(id_block, regex_block)
 
-            bases.append(base_str)
-            qualities.append(quality_scores)
+    for i in range(bases_array.shape[0]):
+        base_str = ''.join([gray_to_base[pixel] for pixel in bases_array[i]])
+        quality_scores = [q // 2 for q in quality_array[i]]
 
-    return bases, qualities
+        seq = Seq(base_str)
+        record = SeqRecord(seq, id=reconstructed_ids[i], description="")
+        record.letter_annotations["phred_quality"] = quality_scores
+        SeqIO.write(record, output_handle, "fastq")
 
 def reconstruct_fastq(id_token_files, id_regex_files, base_files, quality_files, output_fastq_path):
-    ids = []
-    for id_tokens_path, id_regex_path in zip(id_token_files, id_regex_files):
-        tokens, regex = load_id_block(id_tokens_path, id_regex_path)
-        ids.extend(reconstruct_id(tokens, regex))
-
     rules_dict = defaultdict(int)
-    bases, qualities = reconstruct_base_quality(base_files, quality_files, rules_dict)
-
-    records = []
-    for i in range(len(ids)):
-        seq = Seq(bases[i])
-        record = SeqRecord(seq, id=ids[i], description="")
-        record.letter_annotations["phred_quality"] = qualities[i]
-        records.append(record)
 
     with open(output_fastq_path, "w") as output_handle:
-        SeqIO.write(records, output_handle, "fastq")
+        for id_tokens_path, id_regex_path, base_file, quality_file in zip(id_token_files, id_regex_files, base_files, quality_files):
+            tokens, regex = load_id_block(id_tokens_path, id_regex_path)
+            reconstruct_base_quality_and_write(base_file, quality_file, tokens, regex, rules_dict, output_handle)
 
 # 示例文件路径（需要替换为实际路径）
 output_path = r"D:\pythonProject\fastqtobmp\output\first_compressed"
