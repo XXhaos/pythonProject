@@ -514,7 +514,7 @@ def reconstruct_id(tokens, regex):
     for t, r in zip(tokens, regex):
         id_str = r
         for i, token in enumerate(t):
-            id_str = id_str.replace(f"T{i+1}", token)
+            id_str = id_str.replace(f"T{i+1}", token, 1)
         reconstructed_ids.append(id_str)
     return reconstructed_ids
 
@@ -605,12 +605,12 @@ def main(type, input_path, output_path, lpaq8_path, remove_intermediate_products
 
 
 if __name__ == '__main__':
-    fastq_path = f"{os.getcwd()}/input/SRR554369.fastq"
+    fastq_path = f"{os.getcwd()}/input/SRR1525052_1.fastq"
     output_path = f"{os.getcwd()}/output"
     # output_path = None
     lpaq8_path = f"{os.getcwd()}/lpaq8.exe"
     # lpaq8_path = None
-    compressed_path = f"{os.getcwd()}/output/SRR554369"
+    compressed_path = f"{os.getcwd()}/output/SRR1525052_1"
 
     # remove_intermediate_products = True 时，删去中间产物
     main("compress", fastq_path, output_path, lpaq8_path, False)

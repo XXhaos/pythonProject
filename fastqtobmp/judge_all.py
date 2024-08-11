@@ -60,8 +60,8 @@ def compare_fastq_files(file1_path, file2_path):
     return diff_ids, diff_bases, diff_qualities
 
 # 示例文件路径（需要替换为实际路径）
-file1_path = r"D:\pythonProject\fastqtobmp\input\SRR6515505_2.fastq" # 原始FASTQ文件路径
-file2_path = r"D:\pythonProject\fastqtobmp\input\reconstructed.fastq"  # 恢复后的FASTQ文件路径
+file1_path = r"D:\pythonProject\fastqtobmp\input\SRR554369.fastq" # 原始FASTQ文件路径
+file2_path = r"D:\pythonProject\fastqtobmp\output\reconstructed.fastq"  # 恢复后的FASTQ文件路径
 
 # 调用函数比较两个 FASTQ 文件
 diff_ids, diff_bases, diff_qualities = compare_fastq_files(file1_path, file2_path)
