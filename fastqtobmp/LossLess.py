@@ -35,7 +35,7 @@ def generate_regex(delimiters):
     return regex
 
 
-def fastq_to_g_prime(fastq_path, output_path, block_size=16 * 1024 * 1024):
+def fastq_to_g_prime(fastq_path, output_path, block_size=256 * 1024 * 1024):
     """
     将 FASTQ 文件分批读取并转换为预测后的 g_prime 矩阵，每批的大小接近给定的 block_size。
 
