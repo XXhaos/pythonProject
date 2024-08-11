@@ -35,7 +35,7 @@ def generate_regex(delimiters):
     return regex
 
 
-def fastq_to_g_prime(fastq_path, output_path, block_size=256 * 1024 * 1024):
+def fastq_to_g_prime(fastq_path, output_path, block_size=16 * 1024 * 1024):
     """
     将 FASTQ 文件分批读取并转换为预测后的 g_prime 矩阵，每批的大小接近给定的 block_size。
 
@@ -605,13 +605,13 @@ def main(type, input_path, output_path, lpaq8_path, remove_intermediate_products
 
 
 if __name__ == '__main__':
-    fastq_path = f"{os.getcwd()}\input\SRR6819330.fastq"
+    fastq_path = f"{os.getcwd()}\input\SRR6515505_2.fastq"
     output_path = f"{os.getcwd()}\output"
     # output_path = None
     lpaq8_path = f"{os.getcwd()}\lpaq8.exe"
     # lpaq8_path = None
-    compressed_path = f"{os.getcwd()}\output\SRR6819330"
+    compressed_path = f"{os.getcwd()}\output\SRR6515505_2"
 
     # remove_intermediate_products = True 时，删去中间产物
     # main("compress", fastq_path, output_path, lpaq8_path, False)
-    main("decompress", compressed_path, output_path, lpaq8_path, False)
+    # main("decompress", compressed_path, output_path, lpaq8_path, False)
