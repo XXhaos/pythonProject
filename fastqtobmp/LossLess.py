@@ -428,7 +428,7 @@ def first_decompress(fastq_path, first_compressed_path):
         glob.glob(f"{first_compressed_path}/chunk_*_quality.tiff"),
         key=lambda x: int(re.search(r'chunk_(\d+)_quality.tiff', x).group(1))
     )
-    output_fastq_path = r"D:\pythonProject\fastqtobmp\input\reconstructed.fastq"
+    output_fastq_path = f"{os.getcwd()}/output/reconstructed.fastq"
     reconstruct_fastq(id_token_files, id_regex_files, base_files, quality_files, output_fastq_path)
     print("FASTQ文件已还原。")
 
@@ -605,13 +605,13 @@ def main(type, input_path, output_path, lpaq8_path, remove_intermediate_products
 
 
 if __name__ == '__main__':
-    fastq_path = f"{os.getcwd()}\input\SRR6515505_2.fastq"
-    output_path = f"{os.getcwd()}\output"
+    fastq_path = f"{os.getcwd()}/input/SRR554369.fastq"
+    output_path = f"{os.getcwd()}/output"
     # output_path = None
-    lpaq8_path = f"{os.getcwd()}\lpaq8.exe"
+    lpaq8_path = f"{os.getcwd()}/lpaq8.exe"
     # lpaq8_path = None
-    compressed_path = f"{os.getcwd()}\output\SRR6515505_2"
+    compressed_path = f"{os.getcwd()}/output/SRR554369"
 
     # remove_intermediate_products = True 时，删去中间产物
-    # main("compress", fastq_path, output_path, lpaq8_path, False)
+    main("compress", fastq_path, output_path, lpaq8_path, False)
     # main("decompress", compressed_path, output_path, lpaq8_path, False)
