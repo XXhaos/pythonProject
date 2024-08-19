@@ -28,14 +28,14 @@ def generate_regex(delimiters):
     regex = ""
     count = 1
     for delimiter in delimiters:
-        regex += f"T{count}"
+        regex += f"{{{{T{count}}}}}"  # 使用{{T1}}格式
         regex += delimiter
         count += 1
-    regex += f"T{count}"
+    regex += f"{{{{T{count}}}}}"
     return regex
 
 
-def fastq_to_g_prime(fastq_path, output_path, block_size=256 * 1024 * 1024):
+def fastq_to_g_prime(fastq_path, output_path, block_size=16 * 1024 * 1024):
     """
     将 FASTQ 文件分批读取并转换为预测后的 g_prime 矩阵，每批的大小接近给定的 block_size。
 
@@ -514,7 +514,7 @@ def reconstruct_id(tokens, regex):
     for t, r in zip(tokens, regex):
         id_str = r
         for i, token in enumerate(t):
-            id_str = id_str.replace(f"T{i+1}", token, 1)
+            id_str = id_str.replace(f"{{{{T{i+1}}}}}", token)  # 替换占位符
         reconstructed_ids.append(id_str)
     return reconstructed_ids
 
@@ -613,5 +613,5 @@ if __name__ == '__main__':
     compressed_path = f"{os.getcwd()}/output/SRR1525052_1"
 
     # remove_intermediate_products = True 时，删去中间产物
-    main("compress", fastq_path, output_path, lpaq8_path, False)
-    # main("decompress", compressed_path, output_path, lpaq8_path, False)
+    # main("compress", fastq_path, output_path, lpaq8_path, False)
+    main("decompress", compressed_path, output_path, lpaq8_path, False)
