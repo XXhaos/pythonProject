@@ -6,7 +6,6 @@ import sys
 import time
 
 from Bio.Seq import Seq
-import glob
 from Bio.SeqRecord import SeqRecord
 import numpy as np
 from collections import defaultdict
@@ -15,7 +14,7 @@ from PIL import Image
 from Bio import SeqIO
 from tqdm import tqdm
 import re
-from lpaq8 import compress_all_files_in_directory, decompress_all_files_in_directory, compress_file, decompress_file
+from lpaq8 import compress_file, decompress_file
 
 # 定义碱基到灰度值的映射
 base_to_gray = {'A': 32, 'T': 64, 'G': 192, 'C': 224, 'N': 0}
@@ -37,10 +36,10 @@ def generate_regex(delimiters):
     regex = ""
     count = 1
     for delimiter in delimiters:
-        regex += f"T{count}"
+        regex += f"{{{{T{count}}}}}"  # 使用{{T1}}格式
         regex += delimiter
         count += 1
-    regex += f"T{count}"
+    regex += f"{{{{T{count}}}}}"
     return regex
 
 
@@ -618,7 +617,7 @@ def reconstruct_id(tokens, regex):
     for t, r in zip(tokens, regex):
         id_str = r
         for i, token in enumerate(t):
-            id_str = id_str.replace(f"T{i + 1}", token)
+            id_str = id_str.replace(f"{{{{T{i+1}}}}}", token)  # 替换占位符
         reconstructed_ids.append(id_str)
     return reconstructed_ids
 
@@ -755,7 +754,7 @@ def main(mode, input_path, output_path, lpaq8_path, save, gr_progress):
 if __name__ == '__main__':
     lpaq8_path = f"{os.getcwd()}\lpaq8.exe"
 
-    Debug = True
+    Debug = False
     if Debug:
         # 手动debug
         fastq_path = f"{os.getcwd()}\input\SRR554369.fastq"
@@ -763,19 +762,20 @@ if __name__ == '__main__':
         compressed_path = f"{os.getcwd()}\input\SRR554369"
         # main("compress", compressed_path, output_path, lpaq8_path, True)
         main("decompress", compressed_path, output_path, lpaq8_path, True, None)
+        exit(0)
 
-    # # 命令行解析
-    # # 创建参数解析器
-    # parser = argparse.ArgumentParser(description='fastq compress')
-    #
-    # # 添加参数
-    # parser.add_argument('--input_path', type=str, required=True, help='input_path')
-    # parser.add_argument('--output_path', type=str, required=True, help='output_path')
-    # parser.add_argument('--mode', type=str, required=True, help='mode')
-    # parser.add_argument('--save', type=str, required=True, help='save')
-    #
-    # # 解析参数
-    # args = parser.parse_args()
-    #
-    # # 执行主函数
-    # main(args.mode, args.input_path, args.output_path, lpaq8_path, args.save, None)
+    # 命令行解析
+    # 创建参数解析器
+    parser = argparse.ArgumentParser(description='fastq compress')
+
+    # 添加参数
+    parser.add_argument('--input_path', type=str, required=True, help='input_path')
+    parser.add_argument('--output_path', type=str, required=True, help='output_path')
+    parser.add_argument('--mode', type=str, required=True, help='mode')
+    parser.add_argument('--save', type=str, required=True, help='save')
+
+    # 解析参数
+    args = parser.parse_args()
+
+    # 执行主函数
+    main(args.mode, args.input_path, args.output_path, lpaq8_path, args.save, None)
