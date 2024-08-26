@@ -499,6 +499,9 @@ def decompress(compressed_path, output_path, lpaq8_path, remove_intermediate_pro
     # 第一步压缩的逆操作：将解压后的文件组合成fastq文件
     # TODO 将解压后的文件组合成fastq文件
     first_decompress(fastq_path, first_decompressed_path)
+    
+    if remove_intermediate_products:
+        post_process_after_compression(first_compressed_path, second_compressed_path)
 
 # 定义碱基从灰度值的映射
 gray_to_base = {32: 'A', 64: 'T', 192: 'G', 224: 'C', 0: 'N'}
