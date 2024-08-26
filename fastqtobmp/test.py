@@ -2,31 +2,15 @@ import hashlib
 import os
 import re
 import sys
+import time
+
+from tqdm import tqdm
 
 # 定义当前文件总长度
 current_file_length = 300
 
 # 定义预留空间的大小
 reserved_space = 64
-
-# 打开文件以读取和写入二进制数据
-with open('your_file', 'w+b') as file:
-    # 将文件指针移动到预留空间的位置
-    file.seek(0)
-
-    # 将当前文件总长度转换为字节形式
-    total_length_bytes = current_file_length.to_bytes(reserved_space, byteorder='little')
-
-    # 写入当前文件总长度到预留空间
-    file.write(total_length_bytes)
-
-# 读取写入的数据，验证是否正确写入
-with open('your_file', 'rb') as file:
-    file.seek(0)
-    read_total_length = int.from_bytes(file.read(reserved_space), byteorder='little')
-
-
-# print(f"文件总长度为：{read_total_length}")
 
 def calculate_md5(file_path):
     # 创建一个 MD5 hash 对象
@@ -48,6 +32,7 @@ def test(destination1, destination2):
     else:
         print("文件数量校验失败")
 
+    all_success = True
     for file1 in os.listdir(destination1):
         for file2 in os.listdir(destination2):
             if file1 == file2:
@@ -60,6 +45,9 @@ def test(destination1, destination2):
                     print(f"md5校验失败，当前检验的文件名：{file1}")
                     print("md5_hash1", md5_hash1)
                     print("md5_hash2", md5_hash2)
+                    all_success = False
+
+    print(f"所有文件是否匹配成功:{all_success}")
 
 def pattern_match():
     text = 'chunk_11_base_g_prime.lpaq8'
@@ -75,10 +63,33 @@ def pattern_match():
 
 if __name__ == '__main__':
 
-    destination1 = os.path.join(os.getcwd(), "cache", "second_compressed")
-    destination2 = os.path.join(os.getcwd(), "output", "second_compressed")
+    # destination1 = os.path.join(os.getcwd(), "output", "back_compressed")
+    # destination2 = os.path.join(os.getcwd(), "output", "second_compressed")
 
-    test(destination1, destination2)
+    # destination1 = os.path.join(os.getcwd(), "cache", "new", "front_compressed")
+    # destination2 = os.path.join(os.getcwd(), "output", "front_compressed")
+    # test(destination1, destination2)
+    with tqdm(total=100, file=sys.stdout, colour='red', bar_format='{l_bar}{bar}| {n:.3f}/{total_fmt} [{elapsed}<{remaining}, ' '{rate_fmt}{postfix}]') as pbar:
+        for i in range(100):
+            # 模拟任务执行
+            # tqdm.write(str(i))
+            time.sleep(0.01)
+            pbar.update(0.6705)
+
+        pbar.update(pbar.total - pbar.n)
+
+    # destination1 = os.path.join(os.getcwd(), "output", "temp_input.lpaq8")
+    # destination2 = os.path.join(os.getcwd(), "cache", "old", "second_compressed", "chunk_1_id_regex.lpaq8")
+    # md5_hash1 = calculate_md5(destination1)
+    # md5_hash2 = calculate_md5(destination2)
+    # print(md5_hash1 == md5_hash2)
+
+    # with open(os.path.join(os.getcwd(), "input", "SRR554369"), "ab+") as output_file:
+    #     output_file.write(b"%eof%")
+
+
+    # start = 0
+    # end = 9467
 
 
 

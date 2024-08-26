@@ -1,5 +1,6 @@
 import os
 import subprocess
+import threading
 import time
 
 
@@ -15,8 +16,9 @@ def compress_lpaq8(lpaq8_path, input_path, output_path, compression_level='9'):
     """
     command = [lpaq8_path, compression_level, input_path, output_path]
     try:
-        subprocess.run(command, check=True)
-        print(f"文件 {input_path} 压缩成功，保存为 {output_path}")
+        process = subprocess.Popen(command)
+        return process
+        # print(f"文件 {input_path} 压缩成功，保存为 {output_path}")
     except subprocess.CalledProcessError as e:
         print(f"压缩过程中出错: {e}")
     except Exception as e:
@@ -54,8 +56,9 @@ def decompress_lpaq8(lpaq8_path, input_path, output_path):
     """
     command = [lpaq8_path, 'd', input_path, output_path]
     try:
-        subprocess.run(command, check=True)
-        print(f"文件 {input_path} 解压成功，保存为 {output_path}")
+        process = subprocess.Popen(command)
+        # print(f"文件 {input_path} 解压成功，保存为 {output_path}")
+        return process
     except subprocess.CalledProcessError as e:
         print(f"解压过程中出错: {e}")
     except Exception as e:
@@ -73,7 +76,7 @@ def compress_file(input_file, output_file, lpaq8_path, compression_level='9'):
     - compression_level: 压缩级别（默认为9，范围0-9）。
     """
     # 调用lpaq8进行压缩
-    compress_lpaq8(lpaq8_path, input_file, output_file, compression_level)
+    return compress_lpaq8(lpaq8_path, input_file, output_file, compression_level)
 
 
 def decompress_file(input_file, output_file, lpaq8_path):
@@ -85,7 +88,7 @@ def decompress_file(input_file, output_file, lpaq8_path):
     - output_directory: 压缩文件的输出目录。
     - lpaq8_path: lpaq8压缩器的完整路径。
     """
-    decompress_lpaq8(lpaq8_path, input_file, output_file)
+    return decompress_lpaq8(lpaq8_path, input_file, output_file)
 
 
 def compress_all_files_in_directory(input_directory, output_directory, lpaq8_path, compression_level='9'):
@@ -194,9 +197,14 @@ def get_directory_size(directory_path):
     else:
         return f"{total_size / (1024 * 1024 * 1024):.2f} GB"
 
+def monitor_output_file(output_file):
+    while True:
+        file_size = os.path.getsize(output_file)
+        print(f"Output file size: {file_size} bytes")
+        time.sleep(1)  # 每隔一秒检查一次文件大小
+
 
 if __name__ == '__main__':
-    print()
     # 示例用法
     input_directory1 = r"D:\pythonProject\fastqtobmp\input\change_to_gray" # 定义需要压缩的文件路径
     destination_directory1 = r'D:\pythonProject\fastqtobmp\input\change_to_gray_lpaq8'  # 定义输出目录
@@ -204,19 +212,25 @@ if __name__ == '__main__':
 
 
     input_destination = r"D:\pythonProject\fastqtobmp\input"
-    output_destination = r"D:\pythonProject\fastqtobmp\output"
+    output_destination = r"D:\pythonProject\fastqtobmp\output\1"
 
-    compress_lpaq8_test(input_destination, output_destination, lpaq8_exe_path)
+    output_file = os.path.join("output", "SRR554369")
+    monitor_thread = threading.Thread(target=monitor_output_file, args=(output_file, ))
+    monitor_thread.start()
+
+    compress_file(os.path.join(os.getcwd(), "input", "SRR554369.fastq"), os.path.join(os.getcwd(), "output", "SRR554369"), lpaq8_exe_path)
+
+    monitor_thread.join()
 
     # input_directory2 = r"D:\pythonProject\fastqtobmp\input\compressed" # 定义需要压缩的文件路径
     # destination_directory2 = r'D:\pythonProject\fastqtobmp\input\compressed_lpaq8'  # 定义输出目录
 
     # 压缩目录中的所有文件
-    compress_all_files_in_directory(input_directory1, destination_directory1, lpaq8_exe_path)
+    # compress_all_files_in_directory(input_directory1, destination_directory1, lpaq8_exe_path)
     # compress_all_files_in_directory(input_directory2, destination_directory2, lpaq8_exe_path)
 
     # 计算输出目录的大小，并转换为MB
-    size1 = get_directory_size(destination_directory1)
+    # size1 = get_directory_size(destination_directory1)
     # size2 = get_directory_size(destination_directory2)
 
     # 输出两个目录大小的比较结果
