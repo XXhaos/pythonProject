@@ -395,6 +395,7 @@ def get_output_path(input_path, output_path):
 
 def compress(fastq_path, output_path, lpaq8_path, save, gr_progress, block_size=256 * 1024 * 1024):
     output_path = get_output_path(fastq_path, output_path)
+    gr_bar = None
 
     # 初始化规则字典
     rules_dict = init_rules_dict()
@@ -427,7 +428,6 @@ def compress(fastq_path, output_path, lpaq8_path, save, gr_progress, block_size=
                           desc=f"block:{block_count} / {total_block_count}", dynamic_ncols=True,
                           bar_format='{l_bar}{bar}| {n:.3f}/{total_fmt} [{elapsed}<{remaining}, ' '{rate_fmt}{postfix}]') as p_bar:
 
-                    gr_bar = None
                     if gr_progress:
                         gr_bar = gr_progress.tqdm(range(10 * total_reads))
                     process_block(records, rules_dict, block_count, output_path, lpaq8_path, save, p_bar, gr_bar)
