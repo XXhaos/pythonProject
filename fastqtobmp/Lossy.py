@@ -21,6 +21,27 @@ base_to_gray = {'A': 32, 'T': 64, 'G': 192, 'C': 224, 'N': 0}
 # 定义碱基从灰度值的映射
 gray_to_base = {32: 'A', 64: 'T', 192: 'G', 224: 'C', 0: 'N'}
 
+def Q4(qsc):
+    if qsc <= 7:
+        return 5
+    elif qsc <= 13:
+        return 12
+    elif qsc <= 19:
+        return 18
+    else:
+        return 24
+
+
+def ascii_to_quality(ascii_char):
+    return ord(ascii_char) - 33
+
+
+def process_quality_scores(quality_scores):
+    # 将质量分数从ASCII码转换为整数，并映射到0-93的范围
+    quality_scores = [ascii_to_quality(char) for char in quality_scores]
+    # 使用Q4量化器对质量分数进行量化
+    quantized_scores = [Q4(score) for score in quality_scores]
+    return quantized_scores
 
 def find_delimiters(identifier):
     delimiters = re.findall(r'[.:_\s=/-]', identifier)
@@ -60,6 +81,21 @@ def init_rules_dict():
 
     return rules_dict
 
+def init_rules_dict_q():
+    # 定义规则表
+    rule_table = []
+
+    # 添加所有可能的规则到规则库
+    values = [5, 12, 18, 24]
+    combinations = list(product(values, repeat=4))
+
+    for combination in combinations:
+        rule_table.append(combination)
+
+    # 初始化规则字典，记录规则的使用次数
+    rules_dict_q = defaultdict(int)
+
+    return rules_dict_q
 
 # 获取分块需要读取的reads数
 def get_reads_num_per_block(fastq_path, block_size):
@@ -76,6 +112,49 @@ def get_reads_num_per_block(fastq_path, block_size):
     total_reads = os.path.getsize(fastq_path) // bytes_per_read
 
     return reads_per_block, total_reads
+
+def generate_q_prime(Q, rules_dict_q):
+    # 初始化G_prime为与G相同大小的零矩阵
+    Q_prime = np.zeros_like(Q)
+
+    # 按照规则表进行预测并生成G_prime矩阵
+    for i in range(0, Q.shape[0]):
+        for j in range(0, Q.shape[1]):
+            center = Q[i, j]
+            if i == 0:
+                up = 0
+            else:
+                up = Q[i - 1, j]
+            if j == 0:
+                left = 0
+            else:
+                left = Q[i, j - 1]
+            if i != 0 and j != 0:
+                left_up = Q[i - 1, j - 1]
+            else:
+                left_up = 0
+            matched_rule = (up, left_up, left, center)
+            matched_rule1 = (up, left_up, left, 5)
+            matched_rule2 = (up, left_up, left, 12)
+            matched_rule3 = (up, left_up, left, 18)
+            matched_rule4 = (up, left_up, left, 24)
+
+            matched_rules = [matched_rule1, matched_rule2, matched_rule3, matched_rule4]
+            max_freq = -1
+            top_rule = None
+
+            for rule in matched_rules:
+                freq = rules_dict_q[rule]
+                if freq > max_freq:
+                    max_freq = freq
+                    top_rule = rule
+
+            # 如果规则中心与当前元素相同，则将G_prime[i, j]赋值为1，否则赋值为当前元素
+            Q_prime[i, j] = 1 if top_rule[3] == center else center
+            # 更新规则字典中该规则的频率
+            rules_dict_q[matched_rule] += 1
+
+    return Q_prime
 
 def generate_g_prime(G, rules_dict, p_bar, gr_bar):
     # 初始化G_prime为与G相同大小的零矩阵
@@ -127,7 +206,7 @@ def generate_g_prime(G, rules_dict, p_bar, gr_bar):
 
 
 # 对records做压缩
-def process_records(records, rules_dict, p_bar, gr_bar):
+def process_records(records, rules_dict, rules_dict_q, p_bar, gr_bar):
     # 对原始数据进行处理
     id_block = []
     base_image_block = []
@@ -135,7 +214,7 @@ def process_records(records, rules_dict, p_bar, gr_bar):
 
     start_time = time.time()
 
-    # 生成g_prime，quality_block， id_block
+    # 生成g_prime，q_prime， id_block
     for i, record in enumerate(records):
         id_str = record.description
         delimiters = find_delimiters(id_str)
@@ -146,8 +225,10 @@ def process_records(records, rules_dict, p_bar, gr_bar):
         base_gray_values = [base_to_gray.get(base, 0) for base in record.seq]
         base_image_block.append(base_gray_values)
 
-        quality_gray_values = [min(q * 2, 255) for q in record.letter_annotations["phred_quality"]]
-        quality_block.append(quality_gray_values)
+        quality_scores = record.letter_annotations["phred_quality"]
+        ascii_quality_scores = ''.join(chr(q + 33) for q in quality_scores)
+        quantized_scores = process_quality_scores(ascii_quality_scores)
+        quality_block.append(quantized_scores)
 
         p_bar.update(0.1)
         if gr_bar:
@@ -162,15 +243,15 @@ def process_records(records, rules_dict, p_bar, gr_bar):
         # p_bar.set_postfix(ETA=f"预计前端压缩剩余时间：{estimated_remaining_time:.1f}s")
 
     g_prime = generate_g_prime(np.array(base_image_block, dtype=np.uint8), rules_dict, p_bar, gr_bar)
-    quality_block = np.array(quality_block, dtype=np.uint8)
+    q_prime = generate_q_prime(np.array(quality_block, dtype=np.uint8), rules_dict_q)
 
     p_bar.update(p_bar.total * 0.5 - p_bar.n)
     if gr_bar:
         gr_bar.update(np.ceil(10 * (p_bar.total * 0.5 - p_bar.n)))
     g_prime_img = Image.fromarray(g_prime.astype(np.uint8))
-    quality_img = Image.fromarray(quality_block.astype(np.uint8))
+    q_prime_img = Image.fromarray(q_prime.astype(np.uint8))
 
-    return g_prime_img, quality_img, id_block
+    return g_prime_img, q_prime_img, id_block
 
 
 def save_G_block(g_prime_img, output_path, block_count):
@@ -181,13 +262,13 @@ def save_G_block(g_prime_img, output_path, block_count):
     g_prime_img.save(g_prime_file_path)
 
 
-def save_quality_block(quality_img, output_path, block_count):
+def save_Q_block(q_prime_img, output_path, block_count):
     # 构建输出文件路径
     quality_file_path = os.path.join(os.path.dirname(output_path), "front_compressed",
                                      f'chunk_{block_count}_quality.tiff')
 
     # 将G矩阵转换为图像并保存为TIFF文件
-    quality_img.save(quality_file_path)
+    q_prime_img.save(quality_file_path)
 
 
 def save_id_block(id_block, output_path, block_count):
@@ -202,9 +283,9 @@ def save_id_block(id_block, output_path, block_count):
             regex_file.write(regex + '\n')
 
 
-def front_compress(records, rules_dict, block_count, output_path, save, p_bar, gr_bar):
+def front_compress(records, rules_dict, rules_dict_q, block_count, output_path, save, p_bar, gr_bar):
     tqdm.write(f"info：开始前端压缩，当前压缩的是第{block_count}块")
-    g_block, quality_block, id_block = process_records(records, rules_dict, p_bar, gr_bar)
+    g_block, q_block, id_block = process_records(records, rules_dict, rules_dict_q, p_bar, gr_bar)
     tqdm.write(f"info：前端压缩完成，当前压缩的是第{block_count}块")
 
     if save:
@@ -216,12 +297,12 @@ def front_compress(records, rules_dict, block_count, output_path, save, p_bar, g
             os.makedirs(output_dir, exist_ok=True)
 
         save_G_block(g_block, output_path, block_count)
-        save_quality_block(quality_block, output_path, block_count)
+        save_Q_block(q_block, output_path, block_count)
         save_id_block(id_block, output_path, block_count)
 
         tqdm.write("info：前端压缩文件保存完成")
 
-    return g_block, quality_block, id_block
+    return g_block, q_block, id_block
 
     # tqdm.write(f"处理的reads数量: {read_count}，每个图像块的reads数量: {reads_per_block}，一共有: {total_blocks}个图像块。")
     # tqdm.write(f"前端压缩完成，压缩前文件大小：{get_file_size(fastq_path)}")
@@ -278,7 +359,7 @@ def decompress_with_monitor(temp_input_path, temp_output_path, lpaq8_path, p_bar
     monitor(process, temp_input_path, temp_output_path, p_bar, gr_bar, progress)
 
 
-def back_compress(g_block, quality_block, id_block, lpaq8_path, output_path, save, block_count, p_bar, gr_bar):
+def back_compress(g_block, q_block, id_block, lpaq8_path, output_path, save, block_count, p_bar, gr_bar):
     tqdm.write(f"info：开始后端压缩，当前压缩的是第{block_count}块")
 
     output_dir = os.path.join(os.path.dirname(output_path), "back_compressed")
@@ -340,7 +421,7 @@ def back_compress(g_block, quality_block, id_block, lpaq8_path, output_path, sav
                     save_file.write(temp_output_file.read())
 
         # 对quality进行处理
-        quality_block.save(temp_input_path, format="tiff")
+        q_block.save(temp_input_path, format="tiff")
 
         compress_with_monitor(temp_input_path, temp_output_path, lpaq8_path, p_bar, gr_bar, 15)
 
@@ -364,13 +445,13 @@ def back_compress(g_block, quality_block, id_block, lpaq8_path, output_path, sav
     os.remove(temp_output_path)
 
 
-def process_block(records, rules_dict, block_count, output_path, lpaq8_path, save, p_bar, gr_bar):
+def process_block(records, rules_dict, rules_dict_q, block_count, output_path, lpaq8_path, save, p_bar, gr_bar):
     # 第一步处理：调用函数处理FASTQ文件，并打印处理的reads数量、每块reads数量和图像块数量
-    g_block, quality_block, id_block = front_compress(records, rules_dict, block_count, output_path, save, p_bar,
+    g_block, q_block, id_block = front_compress(records, rules_dict, rules_dict_q, block_count, output_path, save, p_bar,
                                                       gr_bar)
 
     # 第二步处理：将处理后的文件进行后端压缩
-    back_compress(g_block, quality_block, id_block, lpaq8_path, output_path, save, block_count, p_bar, gr_bar)
+    back_compress(g_block, q_block, id_block, lpaq8_path, output_path, save, block_count, p_bar, gr_bar)
 
 
 def process_last_block(output_path):
@@ -399,6 +480,7 @@ def compress(fastq_path, output_path, lpaq8_path, save, gr_progress, block_size=
 
     # 初始化规则字典
     rules_dict = init_rules_dict()
+    rules_dict_q = init_rules_dict_q()
 
     # 获取每块应读取的reads条数
     reads_per_block, total_reads = get_reads_num_per_block(fastq_path, block_size)
@@ -430,7 +512,7 @@ def compress(fastq_path, output_path, lpaq8_path, save, gr_progress, block_size=
 
                     if gr_progress:
                         gr_bar = gr_progress.tqdm(range(10 * total_reads))
-                    process_block(records, rules_dict, block_count, output_path, lpaq8_path, save, p_bar, gr_bar)
+                    process_block(records, rules_dict, rules_dict_q, block_count, output_path, lpaq8_path, save, p_bar, gr_bar)
 
                     block_count += 1
                     read_count_per_block = 0
@@ -441,7 +523,7 @@ def compress(fastq_path, output_path, lpaq8_path, save, gr_progress, block_size=
         with tqdm(total=read_count_per_block, file=sys.stdout, colour='red',
                   desc=f"block:{block_count} / {total_block_count}", dynamic_ncols=True,
                   bar_format='{l_bar}{bar}| {n:.3f}/{total_fmt} [{elapsed}<{remaining}, ' '{rate_fmt}{postfix}]') as p_bar:
-            process_block(records, rules_dict, block_count, output_path, lpaq8_path, save, p_bar, gr_bar)
+            process_block(records, rules_dict, rules_dict_q, block_count, output_path, lpaq8_path, save, p_bar, gr_bar)
             process_last_block(output_path)
 
 
@@ -584,7 +666,7 @@ def decompress(compressed_path, output_path, lpaq8_path, save, gr_progress):
                 exit(1)
             g_prime_data = content[start + len(base_g_prime_seperator): end]
 
-            # 获取quality
+            # 获取q_prime
             start = content.find(quality_seperator, end)
             end = content.find(id_regex_seperator, start)
 
@@ -595,14 +677,14 @@ def decompress(compressed_path, output_path, lpaq8_path, save, gr_progress):
             if start == -1 or end < start:
                 tqdm.write("错误：quality_seperator或id_regex_seperator文件分隔符缺失")
                 exit(1)
-            quality_data = content[start + len(quality_seperator): end]
+            q_prime_data = content[start + len(quality_seperator): end]
 
-            id_block, g_prime, quality = process_compressed_block(output_path, lpaq8_path, id_regex_data,
+            id_block, g_prime, q_prime = process_compressed_block(output_path, lpaq8_path, id_regex_data,
                                                                   id_tokens_data,
-                                                                  g_prime_data, quality_data, save, block_count)
+                                                                  g_prime_data, q_prime_data, save, block_count)
             block_count += 1
 
-            reconstruct_fastq(output_path, id_block, g_prime, quality)
+            reconstruct_fastq(output_path, id_block, g_prime, q_prime)
 
 
 def load_id_block(id_block_path, regex_path):
@@ -662,19 +744,58 @@ def reconstruct_g_from_g_prime(g_prime_array, rules_dict):
 
     return De_g
 
+def reconstruct_q_from_q_prime(q_prime_array, rules_dict_q):
+    De_q = np.zeros_like(q_prime_array)
 
-def reconstruct_base_and_quality(g_prime_img, quality_img, rules_dict):
+    for i in range(q_prime_array.shape[0]):
+        for j in range(q_prime_array.shape[1]):
+            center = q_prime_array[i, j]
+            if i == 0:
+                up = 0
+            else:
+                up = De_q[i - 1, j]
+            if j == 0:
+                left = 0
+            else:
+                left = De_q[i, j - 1]
+            if i != 0 and j != 0:
+                left_up = De_q[i - 1, j - 1]
+            else:
+                left_up = 0
+            matched_rule1 = (up, left_up, left, 5)
+            matched_rule2 = (up, left_up, left, 12)
+            matched_rule3 = (up, left_up, left, 18)
+            matched_rule4 = (up, left_up, left, 24)
+
+            matched_rules = [matched_rule1, matched_rule2, matched_rule3, matched_rule4]
+            max_freq = -1
+            top_rule = None
+
+            for rule in matched_rules:
+                freq = rules_dict_q[rule]
+                if freq > max_freq:
+                    max_freq = freq
+                    top_rule = rule
+
+            De_q[i, j] = top_rule[3] if q_prime_array[i, j] == 1 else center
+            matched_rule = (up, left_up, left, De_q[i, j])
+            rules_dict_q[matched_rule] += 1
+
+    return De_q
+
+def reconstruct_base_and_quality(g_prime_img, q_prime_img, rules_dict, rules_dict_q):
     bases = []
     qualities = []
 
     g_prime_array = np.array(g_prime_img)
     bases_array = reconstruct_g_from_g_prime(g_prime_array, rules_dict)
 
-    quality_array = np.array(quality_img)
+    q_prime_array = np.array(q_prime_img)
+    quality_array = reconstruct_q_from_q_prime(q_prime_array, rules_dict_q)
 
     for i in range(bases_array.shape[0]):
         base_str = ''.join([gray_to_base[pixel] for pixel in bases_array[i]])
-        quality_scores = [q // 2 for q in quality_array[i]]
+        quality_scores = [q + 33 for q in quality_array[i]]
 
         bases.append(base_str)
         qualities.append(quality_scores)
@@ -701,19 +822,20 @@ def reconstruct_base_and_quality(g_prime_img, quality_img, rules_dict):
 #     with open(output_fastq_path, "w") as output_handle:
 #         SeqIO.write(records, output_handle, "fastq")
 
-def reconstruct_fastq(output_path, id_block, g_prime_img, quality_img):
+def reconstruct_fastq(output_path, id_block, g_prime_img, q_prime_img):
     records = []
     id_tokens = [item[0] for item in id_block]
     id_regex = [item[0] for item in id_block]
     rules_dict = defaultdict(int)
+    rules_dict_q = defaultdict(int)
 
     ids = reconstruct_id(id_tokens, id_regex)
-    g_prime, quality = reconstruct_base_and_quality(g_prime_img, quality_img, rules_dict)
+    g, q = reconstruct_base_and_quality(g_prime_img, q_prime_img, rules_dict, rules_dict_q)
 
     for i in range(len(ids)):
-        seq = Seq(g_prime[i])
+        seq = Seq(g[i])
         record = SeqRecord(seq, id=ids[i], description="")
-        record.letter_annotations["phred_quality"] = quality[i]
+        record.letter_annotations["phred_quality"] = q[i]
         records.append(record)
 
     with open(output_path, "a+") as output_handle:
