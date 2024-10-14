@@ -541,6 +541,11 @@ def decompress(compressed_path, output_path, lpaq8_path, save, gr_progress):
 
     block_count = 1
 
+    id_regex_dat = None
+    id_tokens_data = None
+    g_prime_data = None
+    quality_data = None
+
     with open(compressed_path, "rb") as input_file:
         content = input_file.read()
 
@@ -597,12 +602,21 @@ def decompress(compressed_path, output_path, lpaq8_path, save, gr_progress):
                 exit(1)
             quality_data = content[start + len(quality_seperator): end]
 
-            id_block, g_prime, quality = process_compressed_block(output_path, lpaq8_path, id_regex_data,
-                                                                  id_tokens_data,
-                                                                  g_prime_data, quality_data, save, block_count)
-            block_count += 1
+    if id_tokens_data is None or g_prime_data is None or quality_data is None or id_regex_data is None:
+        tqdm.write("错误：无法读取到id_regex_data或id_tokens_data或g_prime_data, quality_data")
+        exit(1)
 
-            reconstruct_fastq(output_path, id_block, g_prime, quality)
+    id_block, g_prime, quality = process_compressed_block(output_path, lpaq8_path, id_regex_data,
+                                                          id_tokens_data,
+                                                          g_prime_data, quality_data, save, block_count)
+
+    if id_block is None or g_prime is None or quality is None:
+        tqdm.write("错误：无法重建id_block, g_prime, quality")
+        exit(1)
+
+    block_count += 1
+
+    reconstruct_fastq(output_path, id_block, g_prime, quality)
 
 
 def load_id_block(id_block_path, regex_path):
@@ -716,8 +730,13 @@ def reconstruct_fastq(output_path, id_block, g_prime_img, quality_img):
         record.letter_annotations["phred_quality"] = quality[i]
         records.append(record)
 
+    print(f"ids 的长度：{len(ids)}")
+    print(f"g_prime 的长度：{len(g_prime)}")
+    print(f"quality 的长度：{len(quality)}")
+
     with open(output_path, "a+") as output_handle:
-        SeqIO.write(records, output_handle, "fastq")
+        num_written = SeqIO.write(records, output_handle, "fastq")
+        print(f"写入的记录数量：{num_written}")
 
 
 def main(mode, input_path, output_path, lpaq8_path, save, gr_progress):
