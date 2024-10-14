@@ -146,7 +146,7 @@ def process_records(records, rules_dict, p_bar, gr_bar):
         base_gray_values = [base_to_gray.get(base, 0) for base in record.seq]
         base_image_block.append(base_gray_values)
 
-        quality_gray_values = [min(q * 2, 255) for q in record.letter_annotations["phred_quality"]]
+        quality_gray_values = [q * 2 for q in record.letter_annotations["phred_quality"]]
         quality_block.append(quality_gray_values)
 
         p_bar.update(0.1)
@@ -630,11 +630,11 @@ def reconstruct_id(tokens, regex):
     reconstructed_ids = []
     for t, r in zip(tokens, regex):
         id_str = r
-        for i, token in enumerate(t):
-            id_str = id_str.replace(f"{{{{T{i+1}}}}}", token)  # 替换占位符
+        token_list = t.split()
+        for i, token in enumerate(token_list):
+            id_str = id_str.replace(f"{{{{T{i+1}}}}}", token)
         reconstructed_ids.append(id_str)
     return reconstructed_ids
-
 
 def reconstruct_g_from_g_prime(g_prime_array, rules_dict):
     De_g = np.zeros_like(g_prime_array)
@@ -686,6 +686,9 @@ def reconstruct_base_and_quality(g_prime_img, quality_img, rules_dict):
 
     quality_array = np.array(quality_img)
 
+    # 输出quality_img第一行像素值
+    # print(f"First column of quality values:{quality_array[0]}")
+
     for i in range(bases_array.shape[0]):
         base_str = ''.join([gray_to_base[pixel] for pixel in bases_array[i]])
         quality_scores = [q // 2 for q in quality_array[i]]
@@ -717,26 +720,52 @@ def reconstruct_base_and_quality(g_prime_img, quality_img, rules_dict):
 
 def reconstruct_fastq(output_path, id_block, g_prime_img, quality_img):
     records = []
+
+    # 使用 os.path 确保文件名以 '.fastq' 结尾
+    output_path = os.path.splitext(output_path)[0] + '.fastq'
+
+    # 将 id_block 转换为列表
+    id_block = list(id_block)
+    # 检查 id_block 的结构
+    # print(f"id_block 的长度：{len(id_block)}，内容示例：{id_block[:5]}")
+
     id_tokens = [item[0] for item in id_block]
-    id_regex = [item[0] for item in id_block]
+    id_regex = [item[1] for item in id_block]
+
+    # print(f"id_tokens 的长度：{len(id_tokens)}，内容：{id_tokens[:5]}")
+    # print(f"id_regex 的长度：{len(id_regex)}，内容：{id_regex[:5]}")
+
     rules_dict = defaultdict(int)
 
     ids = reconstruct_id(id_tokens, id_regex)
+
+    # print(f"ids 的长度：{len(ids)}，内容示例：{ids[:5]}")
+
     g_prime, quality = reconstruct_base_and_quality(g_prime_img, quality_img, rules_dict)
+
+    # 查看质量分数的第一行
+    # print(f"First column of quality values:{quality[0]}")
+
+    # print(f"g_prime 的长度：{len(g_prime)}，内容示例：{g_prime[:5]}")
+    # print(f"quality 的长度：{len(quality)}，内容示例：{quality[:5]}")
+
+    # 检查长度是否一致
+    if not (len(ids) == len(g_prime) == len(quality)):
+        print("错误：ids、g_prime 和 quality 的长度不一致！")
+        return
 
     for i in range(len(ids)):
         seq = Seq(g_prime[i])
         record = SeqRecord(seq, id=ids[i], description="")
+
+        # 还原质量得分为对应的ASCII字符
         record.letter_annotations["phred_quality"] = quality[i]
         records.append(record)
 
-    print(f"ids 的长度：{len(ids)}")
-    print(f"g_prime 的长度：{len(g_prime)}")
-    print(f"quality 的长度：{len(quality)}")
-
-    with open(output_path, "a+") as output_handle:
-        num_written = SeqIO.write(records, output_handle, "fastq")
-        print(f"写入的记录数量：{num_written}")
+    with open(output_path, 'a+') as output_handle:
+        num_written = SeqIO.write(records, output_handle, 'fastq')
+        # print(f"写入的记录数量：{num_written}")
+        # print(f"FASTQ 文件已保存到：{output_path}")
 
 
 def main(mode, input_path, output_path, lpaq8_path, save, gr_progress):
