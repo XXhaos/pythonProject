@@ -148,6 +148,7 @@ def process_records(records, rules_dict, p_bar, gr_bar):
 
         quality_gray_values = [q * 2 for q in record.letter_annotations["phred_quality"]]
         quality_block.append(quality_gray_values)
+        print(quality_gray_values[0])
 
         p_bar.update(0.1)
         if gr_bar:
@@ -524,6 +525,7 @@ def process_compressed_block(output_path, lpaq8_path, id_regex_data, id_tokens_d
 
         tqdm.write("g_prime处理完毕")
 
+
     return id_block, g_prime, quality
 
 
@@ -602,6 +604,9 @@ def decompress(compressed_path, output_path, lpaq8_path, save, gr_progress):
                 exit(1)
             quality_data = content[start + len(quality_seperator): end]
 
+            # 展示quality_data第一行
+            # print("第一行的像素值：", quality_data[0])
+
     if id_tokens_data is None or g_prime_data is None or quality_data is None or id_regex_data is None:
         tqdm.write("错误：无法读取到id_regex_data或id_tokens_data或g_prime_data, quality_data")
         exit(1)
@@ -678,6 +683,8 @@ def reconstruct_g_from_g_prime(g_prime_array, rules_dict):
 
 
 def reconstruct_base_and_quality(g_prime_img, quality_img, rules_dict):
+    # 输出quality_img第一行像素值
+
     bases = []
     qualities = []
 
@@ -686,15 +693,15 @@ def reconstruct_base_and_quality(g_prime_img, quality_img, rules_dict):
 
     quality_array = np.array(quality_img)
 
-    # 输出quality_img第一行像素值
-    # print(f"First column of quality values:{quality_array[0]}")
 
     for i in range(bases_array.shape[0]):
         base_str = ''.join([gray_to_base[pixel] for pixel in bases_array[i]])
-        quality_scores = [q // 2 for q in quality_array[i]]
+        # 还原质量分数
+        quality_scores = [q / 2 for q in quality_array[i]]
 
         bases.append(base_str)
         qualities.append(quality_scores)
+        # print(qualities[0])
 
     return bases, qualities
 
@@ -806,8 +813,8 @@ if __name__ == '__main__':
     if Debug:
         # 手动debug
         fastq_path = f"{os.getcwd()}\input\SRR554369.fastq"
-        output_path = f"{os.getcwd()}\output"
-        compressed_path = f"{os.getcwd()}\input\SRR554369"
+        output_path = f"{os.getcwd()}\output\LLLLLL"
+        compressed_path = f"{os.getcwd()}\output\SRR21733577_1"
         # main("compress", compressed_path, output_path, lpaq8_path, True)
         main("decompress", compressed_path, output_path, lpaq8_path, True, None)
         exit(0)
