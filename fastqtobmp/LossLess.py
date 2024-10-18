@@ -394,7 +394,7 @@ def get_output_path(input_path, output_path):
         return os.path.join(output_path, basename)
 
 
-def compress(fastq_path, output_path, lpaq8_path, save, gr_progress, block_size=1 * 1024 * 1024):
+def compress(fastq_path, output_path, lpaq8_path, save, gr_progress, block_size = 256 * 1024 * 1024):
     output_path = get_output_path(fastq_path, output_path)
     gr_bar = None
 
