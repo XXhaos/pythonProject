@@ -828,10 +828,10 @@ def main(mode, input_path, output_path, lpaq8_path, save, gr_progress):
 
     if mode == "compress" or mode == "c":
         tqdm.write(f"info：开始进行fastq压缩程序，文件路径：{input_path}")
-        return compress(input_path, output_path, lpaq8_path, _save, gr_progress)
+        compress(input_path, output_path, lpaq8_path, _save, gr_progress)
     elif mode == "decompress" or mode == "d":
         tqdm.write(f"info：开始进行fastq解压程序，文件路径：{input_path}")
-        return decompress(input_path, output_path, lpaq8_path, _save, gr_progress)
+        decompress(input_path, output_path, lpaq8_path, _save, gr_progress)
     else:
         tqdm.write("错误：指定类型错误")
 
@@ -845,8 +845,8 @@ if __name__ == '__main__':
         fastq_path = f"{os.getcwd()}\input\SRR554369.fastq"
         output_path = f"{os.getcwd()}\output\LLLLLL"
         compressed_path = f"{os.getcwd()}\output\SRR21733577_1"
-        # main("compress", compressed_path, output_path, lpaq8_path, True)
-        main("decompress", compressed_path, output_path, lpaq8_path, True, None)
+        # main("compress", compressed_path, output_path, lpaq8_path, False)
+        main("decompress", compressed_path, output_path, lpaq8_path, False, None)
         exit(0)
 
     # 命令行解析
@@ -857,7 +857,7 @@ if __name__ == '__main__':
     parser.add_argument('--input_path', type=str, required=True, help='input_path')
     parser.add_argument('--output_path', type=str, required=True, help='output_path')
     parser.add_argument('--mode', type=str, required=True, help='mode')
-    parser.add_argument('--save', type=str, required=True, help='save')
+    parser.add_argument('--save', type=str, default='False', help='save (default: False)')
 
     # 解析参数
     args = parser.parse_args()
