@@ -878,7 +878,7 @@ if __name__ == '__main__':
     if Debug:
         # 手动debug
         fastq_path = f"{os.getcwd()}\input\SRR554369.fastq"
-        output_path = f"{os.getcwd()}\output\LLLLLL"
+        output_path = f"{os.getcwd()}\output"
         compressed_path = f"{os.getcwd()}\output\SRR21733577_1"
         # main("compress", compressed_path, output_path, lpaq8_path, False)
         main("decompress", compressed_path, output_path, lpaq8_path, False, None)
