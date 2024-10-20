@@ -835,6 +835,41 @@ def main(mode, input_path, output_path, lpaq8_path, save, gr_progress):
     else:
         tqdm.write("错误：指定类型错误")
 
+def delete_temp_files(output_path, save):
+    temp_dir = output_path  # 使用 output_path 作为临时文件目录
+    tqdm.write(f"扫描临时文件所在的目录: {temp_dir}")
+
+    # 列出所有文件，方便调试
+    all_files = os.listdir(temp_dir)
+    tqdm.write(f"目录下的所有文件: {all_files}")
+
+    # 查找符合条件的临时文件
+    temp_files = [
+        f for f in all_files
+        if f.startswith("temp_input") or f.startswith("temp_output")
+    ]
+    tqdm.write(f"找到的临时文件: {temp_files}")
+
+    # 删除临时文件
+    for temp_file in temp_files:
+        temp_path = os.path.join(temp_dir, temp_file)
+        if os.path.exists(temp_path):
+            try:
+                os.chmod(temp_path, 0o777)  # 修改文件权限，确保可以删除
+                os.remove(temp_path)
+                tqdm.write(f"已删除临时文件: {temp_path}")
+            except Exception as e:
+                tqdm.write(f"无法删除文件 {temp_path}，错误: {e}")
+
+    # 删除 back_compressed 和 front_compressed 文件夹
+    for folder_name in ["back_compressed", "front_compressed"]:
+        folder_path = os.path.join(temp_dir, folder_name)
+        if os.path.exists(folder_path):
+            try:
+                shutil.rmtree(folder_path)
+                tqdm.write(f"已删除文件夹: {folder_path}")
+            except Exception as e:
+                tqdm.write(f"无法删除文件夹 {folder_path}，错误: {e}")
 
 if __name__ == '__main__':
     lpaq8_path = f"{os.getcwd()}\lpaq8.exe"
@@ -864,3 +899,5 @@ if __name__ == '__main__':
 
     # 执行主函数
     main(args.mode, args.input_path, args.output_path, lpaq8_path, args.save, None)
+    # 清空临时文件
+    delete_temp_files(args.output_path, args.save)
