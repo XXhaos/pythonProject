@@ -3,8 +3,8 @@ import numpy as np
 from PIL import Image
 
 # 定义原始图像和还原图像的文件夹路径
-original_folder = r'D:\pythonProject\fastqtobmp\output\front_compressed'
-recovered_folder = r'D:\pythonProject\fastqtobmp\output\LLLLLL\front_compressed'
+original_folder = r"C:\Users\hbxnlsy\Desktop\front_compressed"
+recovered_folder = r"D:\pythonProject\fastqtobmp\output\front_compressed"
 
 # 获取以 '.tiff' 结尾的文件列表，并按照文件名中的序号排序
 original_files = sorted([f for f in os.listdir(original_folder) if f.endswith('.tiff')],

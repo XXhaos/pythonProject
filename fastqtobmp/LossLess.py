@@ -360,9 +360,6 @@ def back_compress(g_block, quality_block, id_block, lpaq8_path, output_path, sav
     if gr_bar:
         gr_bar.update(np.ceil(10 * (p_bar.total - p_bar.n)))
     tqdm.write(f"info：后端压缩完成，当前压缩的是第{block_count}块")
-    # 删除临时文件
-    os.remove(temp_input_path)
-    os.remove(temp_output_path)
 
 
 def process_block(records, rules_dict, block_count, output_path, lpaq8_path, save, p_bar, gr_bar):
@@ -835,7 +832,11 @@ def main(mode, input_path, output_path, lpaq8_path, save, gr_progress):
     else:
         tqdm.write("错误：指定类型错误")
 
-def delete_temp_files(output_path, save):
+    # 删除临时文件
+    if not _save:
+        delete_temp_files(output_path)
+
+def delete_temp_files(output_path):
     temp_dir = output_path  # 使用 output_path 作为临时文件目录
     tqdm.write(f"扫描临时文件所在的目录: {temp_dir}")
 
@@ -877,11 +878,11 @@ if __name__ == '__main__':
     Debug = False
     if Debug:
         # 手动debug
-        fastq_path = f"{os.getcwd()}\input\SRR554369.fastq"
+        # fastq_path = f"{os.getcwd()}\input\SRR554369.fastq"
         output_path = f"{os.getcwd()}\output"
-        compressed_path = f"{os.getcwd()}\output\SRR21733577_1"
-        # main("compress", compressed_path, output_path, lpaq8_path, False)
-        main("decompress", compressed_path, output_path, lpaq8_path, False, None)
+        compressed_path = f"{os.getcwd()}\input\SRR21733577_1.fastq"
+        main("compress", compressed_path, output_path, lpaq8_path, False, None)
+        # main("decompress", compressed_path, output_path, lpaq8_path, False, None)
         exit(0)
 
     # 命令行解析
@@ -899,5 +900,3 @@ if __name__ == '__main__':
 
     # 执行主函数
     main(args.mode, args.input_path, args.output_path, lpaq8_path, args.save, None)
-    # 清空临时文件
-    delete_temp_files(args.output_path, args.save)

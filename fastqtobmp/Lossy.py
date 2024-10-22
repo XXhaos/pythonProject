@@ -4,7 +4,8 @@ import os
 import shutil
 import sys
 import time
-
+from tqdm import tqdm
+from PIL import Image, UnidentifiedImageError
 from Bio.Seq import Seq
 from Bio.SeqRecord import SeqRecord
 import numpy as np
@@ -30,18 +31,6 @@ def Q4(qsc):
         return 18
     else:
         return 24
-
-
-def ascii_to_quality(ascii_char):
-    return ord(ascii_char) - 33
-
-
-def process_quality_scores(quality_scores):
-    # 将质量分数从ASCII码转换为整数，并映射到0-93的范围
-    quality_scores = [ascii_to_quality(char) for char in quality_scores]
-    # 使用Q4量化器对质量分数进行量化
-    quantized_scores = [Q4(score) for score in quality_scores]
-    return quantized_scores
 
 def find_delimiters(identifier):
     delimiters = re.findall(r'[.:_\s=/-]', identifier)
@@ -113,49 +102,6 @@ def get_reads_num_per_block(fastq_path, block_size):
 
     return reads_per_block, total_reads
 
-def generate_q_prime(Q, rules_dict_q):
-    # 初始化G_prime为与G相同大小的零矩阵
-    Q_prime = np.zeros_like(Q)
-
-    # 按照规则表进行预测并生成G_prime矩阵
-    for i in range(0, Q.shape[0]):
-        for j in range(0, Q.shape[1]):
-            center = Q[i, j]
-            if i == 0:
-                up = 0
-            else:
-                up = Q[i - 1, j]
-            if j == 0:
-                left = 0
-            else:
-                left = Q[i, j - 1]
-            if i != 0 and j != 0:
-                left_up = Q[i - 1, j - 1]
-            else:
-                left_up = 0
-            matched_rule = (up, left_up, left, center)
-            matched_rule1 = (up, left_up, left, 5)
-            matched_rule2 = (up, left_up, left, 12)
-            matched_rule3 = (up, left_up, left, 18)
-            matched_rule4 = (up, left_up, left, 24)
-
-            matched_rules = [matched_rule1, matched_rule2, matched_rule3, matched_rule4]
-            max_freq = -1
-            top_rule = None
-
-            for rule in matched_rules:
-                freq = rules_dict_q[rule]
-                if freq > max_freq:
-                    max_freq = freq
-                    top_rule = rule
-
-            # 如果规则中心与当前元素相同，则将G_prime[i, j]赋值为1，否则赋值为当前元素
-            Q_prime[i, j] = 1 if top_rule[3] == center else center
-            # 更新规则字典中该规则的频率
-            rules_dict_q[matched_rule] += 1
-
-    return Q_prime
-
 def generate_g_prime(G, rules_dict, p_bar, gr_bar):
     # 初始化G_prime为与G相同大小的零矩阵
     G_prime = np.zeros_like(G)
@@ -204,6 +150,48 @@ def generate_g_prime(G, rules_dict, p_bar, gr_bar):
 
     return G_prime
 
+def generate_q_prime(Q, rules_dict_q):
+    # 初始化G_prime为与G相同大小的零矩阵
+    Q_prime = np.zeros_like(Q)
+
+    # 按照规则表进行预测并生成G_prime矩阵
+    for i in range(0, Q.shape[0]):
+        for j in range(0, Q.shape[1]):
+            center = Q[i, j]
+            if i == 0:
+                up = 0
+            else:
+                up = Q[i - 1, j]
+            if j == 0:
+                left = 0
+            else:
+                left = Q[i, j - 1]
+            if i != 0 and j != 0:
+                left_up = Q[i - 1, j - 1]
+            else:
+                left_up = 0
+            matched_rule = (up, left_up, left, center)
+            matched_rule1 = (up, left_up, left, 5)
+            matched_rule2 = (up, left_up, left, 12)
+            matched_rule3 = (up, left_up, left, 18)
+            matched_rule4 = (up, left_up, left, 24)
+
+            matched_rules = [matched_rule1, matched_rule2, matched_rule3, matched_rule4]
+            max_freq = -1
+            top_rule = None
+
+            for rule in matched_rules:
+                freq = rules_dict_q[rule]
+                if freq > max_freq:
+                    max_freq = freq
+                    top_rule = rule
+
+            # 如果规则中心与当前元素相同，则将G_prime[i, j]赋值为1，否则赋值为当前元素
+            Q_prime[i, j] = 1 if top_rule[3] == center else center
+            # 更新规则字典中该规则的频率
+            rules_dict_q[matched_rule] += 1
+
+    return Q_prime
 
 # 对records做压缩
 def process_records(records, rules_dict, rules_dict_q, p_bar, gr_bar):
@@ -214,7 +202,7 @@ def process_records(records, rules_dict, rules_dict_q, p_bar, gr_bar):
 
     start_time = time.time()
 
-    # 生成g_prime，q_prime， id_block
+    # 生成g_prime， q_prime， id_block
     for i, record in enumerate(records):
         id_str = record.description
         delimiters = find_delimiters(id_str)
@@ -225,10 +213,8 @@ def process_records(records, rules_dict, rules_dict_q, p_bar, gr_bar):
         base_gray_values = [base_to_gray.get(base, 0) for base in record.seq]
         base_image_block.append(base_gray_values)
 
-        quality_scores = record.letter_annotations["phred_quality"]
-        ascii_quality_scores = ''.join(chr(q + 33) for q in quality_scores)
-        quantized_scores = process_quality_scores(ascii_quality_scores)
-        quality_block.append(quantized_scores)
+        quality_gray_values = [Q4(q) for q in record.letter_annotations["phred_quality"]]
+        quality_block.append(quality_gray_values)
 
         p_bar.update(0.1)
         if gr_bar:
@@ -420,7 +406,7 @@ def back_compress(g_block, q_block, id_block, lpaq8_path, output_path, save, blo
                 with open(save_path, "w+b") as save_file:
                     save_file.write(temp_output_file.read())
 
-        # 对quality进行处理
+        # 对q_block进行处理
         q_block.save(temp_input_path, format="tiff")
 
         compress_with_monitor(temp_input_path, temp_output_path, lpaq8_path, p_bar, gr_bar, 15)
@@ -440,15 +426,12 @@ def back_compress(g_block, q_block, id_block, lpaq8_path, output_path, save, blo
     if gr_bar:
         gr_bar.update(np.ceil(10 * (p_bar.total - p_bar.n)))
     tqdm.write(f"info：后端压缩完成，当前压缩的是第{block_count}块")
-    # 删除临时文件
-    os.remove(temp_input_path)
-    os.remove(temp_output_path)
 
 
 def process_block(records, rules_dict, rules_dict_q, block_count, output_path, lpaq8_path, save, p_bar, gr_bar):
     # 第一步处理：调用函数处理FASTQ文件，并打印处理的reads数量、每块reads数量和图像块数量
-    g_block, q_block, id_block = front_compress(records, rules_dict, rules_dict_q, block_count, output_path, save, p_bar,
-                                                      gr_bar)
+    g_block, q_block, id_block = front_compress(records, rules_dict, rules_dict_q, block_count, output_path, save,
+                                                p_bar, gr_bar)
 
     # 第二步处理：将处理后的文件进行后端压缩
     back_compress(g_block, q_block, id_block, lpaq8_path, output_path, save, block_count, p_bar, gr_bar)
@@ -474,7 +457,7 @@ def get_output_path(input_path, output_path):
         return os.path.join(output_path, basename)
 
 
-def compress(fastq_path, output_path, lpaq8_path, save, gr_progress, block_size=256 * 1024 * 1024):
+def compress(fastq_path, output_path, lpaq8_path, save, gr_progress, block_size = 256 * 1024 * 1024):
     output_path = get_output_path(fastq_path, output_path)
     gr_bar = None
 
@@ -517,6 +500,8 @@ def compress(fastq_path, output_path, lpaq8_path, save, gr_progress, block_size=
                     block_count += 1
                     read_count_per_block = 0
                     records = []
+                    # 重置规则字典
+                    rules_dict = init_rules_dict()
 
     # 处理最后一个块（如果有剩余）
     if records:
@@ -525,10 +510,10 @@ def compress(fastq_path, output_path, lpaq8_path, save, gr_progress, block_size=
                   bar_format='{l_bar}{bar}| {n:.3f}/{total_fmt} [{elapsed}<{remaining}, ' '{rate_fmt}{postfix}]') as p_bar:
             process_block(records, rules_dict, rules_dict_q, block_count, output_path, lpaq8_path, save, p_bar, gr_bar)
             process_last_block(output_path)
+            block_count += 1
 
 
-def process_compressed_block(output_path, lpaq8_path, id_regex_data, id_tokens_data, g_prime_data, quality_data, save,
-                             block_count):
+def process_compressed_block(output_path, lpaq8_path, id_regex_data, id_tokens_data, g_prime_data, q_prime_data, save, block_count):
     # 生成保存文件的文件夹
     back_compress_dir = os.path.join(os.path.dirname(output_path), "back_compressed")
     front_compress_dir = os.path.join(os.path.dirname(output_path), "front_compressed")
@@ -539,8 +524,18 @@ def process_compressed_block(output_path, lpaq8_path, id_regex_data, id_tokens_d
         if not os.path.exists(front_compress_dir):
             os.makedirs(front_compress_dir, exist_ok=True)
 
-    temp_input_path = os.path.join(os.path.dirname(output_path), "temp_input")
-    temp_output_path = os.path.join(os.path.dirname(output_path), "temp_output")
+    # 定义不同的临时文件路径，每个数据块使用唯一的路径
+    temp_input_path_id_regex = os.path.join(os.path.dirname(output_path), f"temp_input_id_regex_{block_count}")
+    temp_output_path_id_regex = os.path.join(os.path.dirname(output_path), f"temp_output_id_regex_{block_count}")
+
+    temp_input_path_id_tokens = os.path.join(os.path.dirname(output_path), f"temp_input_id_tokens_{block_count}")
+    temp_output_path_id_tokens = os.path.join(os.path.dirname(output_path), f"temp_output_id_tokens_{block_count}")
+
+    temp_input_path_quality = os.path.join(os.path.dirname(output_path), f"temp_input_quality_{block_count}")
+    temp_output_path_quality = os.path.join(os.path.dirname(output_path), f"temp_output_quality_{block_count}")
+
+    temp_input_path_g_prime = os.path.join(os.path.dirname(output_path), f"temp_input_g_prime_{block_count}")
+    temp_output_path_g_prime = os.path.join(os.path.dirname(output_path), f"temp_output_g_prime_{block_count}")
 
     id_regex = None
     id_tokens = None
@@ -548,65 +543,82 @@ def process_compressed_block(output_path, lpaq8_path, id_regex_data, id_tokens_d
     quality = None
     id_block = None
 
-    with open(temp_input_path, "wb") as temp_input_file:
-        with open(temp_output_path, "w+") as temp_output_file:
-            # id_regex
-            temp_input_file.write(id_regex_data)
+    try:
+        # 处理 id_regex 数据块
+        with open(temp_input_path_id_regex, "wb") as temp_input_file:
+            with open(temp_output_path_id_regex, "w+") as temp_output_file:
+                temp_input_file.write(id_regex_data)
+                temp_input_file.flush()
+                # 调用已有的解压缩函数
+                decompress_with_monitor(temp_input_path_id_regex, temp_output_path_id_regex, lpaq8_path, None, None, None)
+                id_regex = [line.strip() for line in temp_output_file.readlines()]
+
+                if save:
+                    shutil.copy(temp_input_path_id_regex, os.path.join(back_compress_dir, f"chunk_{block_count}_id_regex.lpaq8"))
+                    shutil.copy(temp_output_path_id_regex, os.path.join(front_compress_dir, f"chunk_{block_count}_id_regex.txt"))
+
+                tqdm.write("id_regex处理完毕")
+
+        # 处理 id_tokens 数据块
+        with open(temp_input_path_id_tokens, "wb") as temp_input_file:
+            with open(temp_output_path_id_tokens, "w+") as temp_output_file:
+                temp_input_file.write(id_tokens_data)
+                temp_input_file.flush()
+                # 调用已有的解压缩函数
+                decompress_with_monitor(temp_input_path_id_tokens, temp_output_path_id_tokens, lpaq8_path, None, None, None)
+                id_tokens = [line.strip() for line in temp_output_file.readlines()]
+
+                if save:
+                    shutil.copy(temp_input_path_id_tokens, os.path.join(back_compress_dir, f"chunk_{block_count}_id_tokens.lpaq8"))
+                    shutil.copy(temp_output_path_id_tokens, os.path.join(front_compress_dir, f"chunk_{block_count}_id_tokens.txt"))
+
+                tqdm.write("id_tokens处理完毕")
+
+        id_block = zip(id_tokens, id_regex)
+
+        # 处理 q_prime 数据块
+        with open(temp_input_path_quality, "wb") as temp_input_file:
+            temp_input_file.write(q_prime_data)
             temp_input_file.flush()
-            decompress_with_monitor(temp_input_path, temp_output_path, lpaq8_path, None, None, None)
-            id_regex = [line.strip() for line in temp_output_file.readlines()]
+            # 调用已有的解压缩函数
+            decompress_with_monitor(temp_input_path_quality, temp_output_path_quality, lpaq8_path, None, None, None)
+            # 确保文件写入完成
+            try:
+                with Image.open(temp_output_path_quality) as img:
+                    q_prime = img.copy()
+            except UnidentifiedImageError:
+                tqdm.write(f"无法识别的图像文件: {temp_output_path_quality}")
+                raise
 
             if save:
-                shutil.copy(temp_input_path, os.path.join(back_compress_dir, f"chunk_{block_count}_id_regex.lpaq8"))
-                shutil.copy(temp_output_path, os.path.join(front_compress_dir, f"chunk_{block_count}_id_regex.txt"))
+                shutil.copy(temp_input_path_quality, os.path.join(back_compress_dir, f'chunk_{block_count}_quality.lpaq8'))
+                shutil.copy(temp_output_path_quality, os.path.join(front_compress_dir, f'chunk_{block_count}_quality.tiff'))
 
-            tqdm.write("id_regex处理完毕")
+            tqdm.write("quality处理完毕")
 
-    with open(temp_input_path, "wb") as temp_input_file:
-        with open(temp_output_path, "w+") as temp_output_file:
-            # id_tokens
-            temp_input_file.write(id_tokens_data)
+        # 处理 g_prime 数据块
+        with open(temp_input_path_g_prime, "wb") as temp_input_file:
+            temp_input_file.write(g_prime_data)
             temp_input_file.flush()
-            decompress_with_monitor(temp_input_path, temp_output_path, lpaq8_path, None, None, None)
-            id_tokens = [line.strip() for line in temp_output_file.readlines()]
+            # 调用已有的解压缩函数
+            decompress_with_monitor(temp_input_path_g_prime, temp_output_path_g_prime, lpaq8_path, None, None, None)
+            # 确保文件写入完成
+            try:
+                with Image.open(temp_output_path_g_prime) as img:
+                    g_prime = img.copy()
+            except UnidentifiedImageError:
+                tqdm.write(f"无法识别的图像文件: {temp_output_path_g_prime}")
+                raise
 
             if save:
-                shutil.copy(temp_input_path, os.path.join(back_compress_dir, f"chunk_{block_count}_id_tokens.lpaq8"))
-                shutil.copy(temp_output_path, os.path.join(front_compress_dir, f"chunk_{block_count}_id_tokens.txt"))
+                shutil.copy(temp_input_path_g_prime, os.path.join(back_compress_dir, f'chunk_{block_count}_base_g_prime.lpaq8'))
+                shutil.copy(temp_output_path_g_prime, os.path.join(front_compress_dir, f'chunk_{block_count}_base_g_prime.tiff'))
 
-            tqdm.write("id_tokens处理完毕")
+            tqdm.write("g_prime处理完毕")
 
-    id_block = zip(id_tokens, id_regex)
-
-    with open(temp_input_path, "wb") as temp_input_file:
-
-        # quality
-        temp_input_file.write(quality_data)
-        temp_input_file.flush()
-        decompress_with_monitor(temp_input_path, temp_output_path, lpaq8_path, None, None, None)
-        quality = Image.open(temp_output_path)
-
-        if save:
-            shutil.copy(temp_input_path, os.path.join(back_compress_dir, f'chunk_{block_count}_quality.lpaq8'))
-            shutil.copy(temp_output_path, os.path.join(front_compress_dir, f'chunk_{block_count}_quality.tiff'))
-
-        tqdm.write("quality处理完毕")
-
-    with open(temp_input_path, "wb") as temp_input_file:
-
-        # g_prime
-        temp_input_file.write(g_prime_data)
-        temp_input_file.flush()
-        decompress_with_monitor(temp_input_path, temp_output_path, lpaq8_path, None, None, None)
-        g_prime = Image.open(temp_output_path)
-
-        if save:
-            shutil.copy(temp_input_path, os.path.join(back_compress_dir, f'chunk_{block_count}_base_g_prime.lpaq8'))
-            shutil.copy(temp_output_path, os.path.join(front_compress_dir, f'chunk_{block_count}_base_g_prime.tiff'))
-
-        tqdm.write("g_prime处理完毕")
-
-    return id_block, g_prime, quality
+    finally:
+        pass
+    return id_block, g_prime, q_prime
 
 
 def decompress(compressed_path, output_path, lpaq8_path, save, gr_progress):
@@ -622,6 +634,11 @@ def decompress(compressed_path, output_path, lpaq8_path, save, gr_progress):
     end = 0
 
     block_count = 1
+
+    id_regex_dat = None
+    id_tokens_data = None
+    g_prime_data = None
+    q_prime_data = None
 
     with open(compressed_path, "rb") as input_file:
         content = input_file.read()
@@ -679,10 +696,33 @@ def decompress(compressed_path, output_path, lpaq8_path, save, gr_progress):
                 exit(1)
             q_prime_data = content[start + len(quality_seperator): end]
 
+            if id_tokens_data is None or g_prime_data is None or q_prime_data is None or id_regex_data is None:
+                tqdm.write("错误：无法读取到id_regex_data或id_tokens_data或g_prime_data, q_prime_data")
+                exit(1)
+
             id_block, g_prime, q_prime = process_compressed_block(output_path, lpaq8_path, id_regex_data,
                                                                   id_tokens_data,
                                                                   g_prime_data, q_prime_data, save, block_count)
+
+            if id_block is None or g_prime is None or q_prime_data is None:
+                tqdm.write("错误：无法重建id_block, g_prime, quality")
+                exit(1)
+
             block_count += 1
+
+            # # 判断g_prime_data, quality_data是否相同
+            # if g_prime_data == quality_data:
+            #     print("错误：g_prime_data, quality_data相同")
+            #     exit(1)
+            # else:
+            #     print("g_prime_data, quality_data不同")
+            #
+            # # 判断g_prime, quality是否相同
+            # if g_prime == quality:
+            #     print("错误：g_prime, quality相同")
+            #     exit(1)
+            # else:
+            #     print("g_prime, quality不同")
 
             reconstruct_fastq(output_path, id_block, g_prime, q_prime)
 
@@ -698,11 +738,11 @@ def reconstruct_id(tokens, regex):
     reconstructed_ids = []
     for t, r in zip(tokens, regex):
         id_str = r
-        for i, token in enumerate(t):
-            id_str = id_str.replace(f"{{{{T{i+1}}}}}", token)  # 替换占位符
+        token_list = t.split()
+        for i, token in enumerate(token_list):
+            id_str = id_str.replace(f"{{{{T{i+1}}}}}", token)
         reconstructed_ids.append(id_str)
     return reconstructed_ids
-
 
 def reconstruct_g_from_g_prime(g_prime_array, rules_dict):
     De_g = np.zeros_like(g_prime_array)
@@ -783,9 +823,13 @@ def reconstruct_q_from_q_prime(q_prime_array, rules_dict_q):
 
     return De_q
 
-def reconstruct_base_and_quality(g_prime_img, q_prime_img, rules_dict, rules_dict_q):
+def reconstruct_base_and_quality(g_prime_img, q_prime_img):
     bases = []
     qualities = []
+
+    # 创建新的 rules_dict和rules_dict_q
+    rules_dict = defaultdict(int)
+    rules_dict_q = defaultdict(int)
 
     g_prime_array = np.array(g_prime_img)
     bases_array = reconstruct_g_from_g_prime(g_prime_array, rules_dict)
@@ -793,12 +837,15 @@ def reconstruct_base_and_quality(g_prime_img, q_prime_img, rules_dict, rules_dic
     q_prime_array = np.array(q_prime_img)
     quality_array = reconstruct_q_from_q_prime(q_prime_array, rules_dict_q)
 
+
     for i in range(bases_array.shape[0]):
         base_str = ''.join([gray_to_base[pixel] for pixel in bases_array[i]])
-        quality_scores = [q + 33 for q in quality_array[i]]
+        # 还原质量分数
+        quality_scores = [q for q in quality_array[i]]
 
         bases.append(base_str)
         qualities.append(quality_scores)
+        # print(qualities[0])
 
     return bases, qualities
 
@@ -824,22 +871,42 @@ def reconstruct_base_and_quality(g_prime_img, q_prime_img, rules_dict, rules_dic
 
 def reconstruct_fastq(output_path, id_block, g_prime_img, q_prime_img):
     records = []
+
+    # 使用 os.path 确保文件名以 '.fastq' 结尾
+    output_path = os.path.splitext(output_path)[0] + '.fastq'
+
+    # 将 id_block 转换为列表
+    id_block = list(id_block)
+
     id_tokens = [item[0] for item in id_block]
-    id_regex = [item[0] for item in id_block]
-    rules_dict = defaultdict(int)
-    rules_dict_q = defaultdict(int)
+    id_regex = [item[1] for item in id_block]
 
     ids = reconstruct_id(id_tokens, id_regex)
-    g, q = reconstruct_base_and_quality(g_prime_img, q_prime_img, rules_dict, rules_dict_q)
+
+    # 将图像转换为数组
+    g_prime_array = np.array(g_prime_img)  # 将 g_prime_img 转换为数组
+    q_prime_array = np.array(q_prime_img)  # 将 quality_img 转换为数组
+
+    # 使用 reconstruct_base_and_quality 进行重构
+    g_prime, q_prime = reconstruct_base_and_quality(g_prime_array, q_prime_array)
+
+    # 确保长度一致
+    if not (len(ids) == len(g_prime) == len(q_prime)):
+        print("错误：ids、g_prime 和 quality 的长度不一致！")
+        return
 
     for i in range(len(ids)):
-        seq = Seq(g[i])
+        seq = Seq(g_prime[i])
         record = SeqRecord(seq, id=ids[i], description="")
-        record.letter_annotations["phred_quality"] = q[i]
+
+        # 还原质量得分为对应的 ASCII 字符
+        record.letter_annotations["phred_quality"] = q_prime[i]
         records.append(record)
 
-    with open(output_path, "a+") as output_handle:
-        SeqIO.write(records, output_handle, "fastq")
+    with open(output_path, 'a+') as output_handle:
+        num_written = SeqIO.write(records, output_handle, 'fastq')
+        # print(f"写入的记录数量：{num_written}")
+        # print(f"FASTQ 文件已保存到：{output_path}")
 
 
 def main(mode, input_path, output_path, lpaq8_path, save, gr_progress):
@@ -865,13 +932,52 @@ def main(mode, input_path, output_path, lpaq8_path, save, gr_progress):
 
     if mode == "compress" or mode == "c":
         tqdm.write(f"info：开始进行fastq压缩程序，文件路径：{input_path}")
-        return compress(input_path, output_path, lpaq8_path, _save, gr_progress)
+        compress(input_path, output_path, lpaq8_path, _save, gr_progress)
     elif mode == "decompress" or mode == "d":
         tqdm.write(f"info：开始进行fastq解压程序，文件路径：{input_path}")
-        return decompress(input_path, output_path, lpaq8_path, _save, gr_progress)
+        decompress(input_path, output_path, lpaq8_path, _save, gr_progress)
     else:
         tqdm.write("错误：指定类型错误")
 
+    # 删除临时文件
+    if not _save:
+        delete_temp_files(output_path)
+
+def delete_temp_files(output_path):
+    temp_dir = output_path  # 使用 output_path 作为临时文件目录
+    tqdm.write(f"扫描临时文件所在的目录: {temp_dir}")
+
+    # 列出所有文件，方便调试
+    all_files = os.listdir(temp_dir)
+    tqdm.write(f"目录下的所有文件: {all_files}")
+
+    # 查找符合条件的临时文件
+    temp_files = [
+        f for f in all_files
+        if f.startswith("temp_input") or f.startswith("temp_output")
+    ]
+    tqdm.write(f"找到的临时文件: {temp_files}")
+
+    # 删除临时文件
+    for temp_file in temp_files:
+        temp_path = os.path.join(temp_dir, temp_file)
+        if os.path.exists(temp_path):
+            try:
+                os.chmod(temp_path, 0o777)  # 修改文件权限，确保可以删除
+                os.remove(temp_path)
+                tqdm.write(f"已删除临时文件: {temp_path}")
+            except Exception as e:
+                tqdm.write(f"无法删除文件 {temp_path}，错误: {e}")
+
+    # 删除 back_compressed 和 front_compressed 文件夹
+    for folder_name in ["back_compressed", "front_compressed"]:
+        folder_path = os.path.join(temp_dir, folder_name)
+        if os.path.exists(folder_path):
+            try:
+                shutil.rmtree(folder_path)
+                tqdm.write(f"已删除文件夹: {folder_path}")
+            except Exception as e:
+                tqdm.write(f"无法删除文件夹 {folder_path}，错误: {e}")
 
 if __name__ == '__main__':
     lpaq8_path = f"{os.getcwd()}\lpaq8.exe"
@@ -879,11 +985,11 @@ if __name__ == '__main__':
     Debug = False
     if Debug:
         # 手动debug
-        fastq_path = f"{os.getcwd()}\input\SRR554369.fastq"
+        # fastq_path = f"{os.getcwd()}\input\SRR554369.fastq"
         output_path = f"{os.getcwd()}\output"
-        compressed_path = f"{os.getcwd()}\input\SRR554369"
-        # main("compress", compressed_path, output_path, lpaq8_path, True)
-        main("decompress", compressed_path, output_path, lpaq8_path, True, None)
+        compressed_path = f"{os.getcwd()}\output\SRR21733577_1"
+        # main("compress", compressed_path, output_path, lpaq8_path, False)
+        main("decompress", compressed_path, output_path, lpaq8_path, False, None)
         exit(0)
 
     # 命令行解析
@@ -894,7 +1000,7 @@ if __name__ == '__main__':
     parser.add_argument('--input_path', type=str, required=True, help='input_path')
     parser.add_argument('--output_path', type=str, required=True, help='output_path')
     parser.add_argument('--mode', type=str, required=True, help='mode')
-    parser.add_argument('--save', type=str, required=True, help='save')
+    parser.add_argument('--save', type=str, default='False', help='save (default: False)')
 
     # 解析参数
     args = parser.parse_args()
