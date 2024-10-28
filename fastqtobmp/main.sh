@@ -1,0 +1,1 @@
+python main.py --compressor "Lossless" --input_path "input\SRR554369.fastq" --output_path "output" --mode "c" --save "False"

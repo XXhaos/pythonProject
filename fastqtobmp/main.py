@@ -13,7 +13,6 @@ if __name__ == '__main__':
 
     # 添加参数
     parser.add_argument('--compressor', type=str, default='Lossy', help='Lossy or LossLess?')
-    parser.add_argument('--save', type=str, default='False', help='save (default: False)')
     parser.add_argument('--input_path', type=str, required=True, help='input_path')
     parser.add_argument('--output_path', type=str, required=True, help='output_path')
     parser.add_argument('--mode', type=str, required=True, help='mode')
@@ -22,11 +21,17 @@ if __name__ == '__main__':
     # 解析参数
     args = parser.parse_args()
 
+    # 压缩器调用参数
+    # Lossy是有损压缩
+    # LossLess是无损压缩
+    Lossy_commands = ['Lossy', 'lossy']
+    LossLess_commands = ['LossLess', 'lossless', 'lossLess', 'Lossless']
+
     # 执行主函数
-    if args.compressor == 'Lossy' or args.compressor == 'lossy':
+    if args.compressor in Lossy_commands:
         lossy(args.mode, args.input_path, args.output_path, lpaq8_path, args.save, None)
 
-    elif args.compressor == 'LossLess' or args.compressor == 'lossLess':
+    elif args.compressor in LossLess_commands:
         lossLess(args.mode, args.input_path, args.output_path, lpaq8_path, args.save, None)
 
     else:
